@@ -1,0 +1,6 @@
+cradle:
+  cabal:
+  - component: "abstract-filepath:lib:abstract-filepath"
+    path: ./lib
+  - component: "abstract-filepath:test:abstract-filepath-test"
+    path: ./test
