@@ -6,25 +6,18 @@ import Data.Bits ((.&.))
 import Data.ByteString (ByteString)
 import Data.ByteString.Short (ShortByteString)
 import Data.Text (Text)
-import Data.Text.Encoding.Error
+import Data.Text.Encoding.Error ( OnDecodeError, strictDecode )
 import Data.Text.Internal.Fusion (Stream(..), Step)
-import Data.Text.Internal.Fusion.Size
-import Data.Text.Internal.Fusion.Types
+import Data.Text.Internal.Fusion.Size ( maxSize )
+import Data.Text.Internal.Fusion.Types ( Stream(..), Step(..) )
 import Data.Text.Internal.Private (runText)
 import Data.Text.Internal.Unsafe.Char (ord, unsafeChr, unsafeChr8, unsafeWrite)
 import Data.Text.Internal.Unsafe.Shift (shiftL, shiftR)
-import Data.Word
+import Data.Word ( Word8, Word16 )
 
-import qualified Data.ByteString       as B
 import qualified Data.ByteString.Short as BS (ShortByteString(..), toShort, fromShort, length, index)
-import qualified Data.ByteString.Unsafe as B
-import qualified Data.Text as T
-import qualified Data.Text.Array as A
-import qualified Data.Text.Encoding as E
-import qualified Data.Text.Internal as I
 import qualified Data.Text.Internal.Encoding.Utf8 as U8
 import qualified Data.Text.Internal.Encoding.Utf16 as U16
-import qualified Data.Text.Internal.Fusion.Common as S
 
 
 -- | /O(n)/ Convert a 'ByteString' into a 'Stream Char', using UTF-8

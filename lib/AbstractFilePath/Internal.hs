@@ -2,11 +2,13 @@
 
 module AbstractFilePath.Internal where
 
-import AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf8)
+import AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf8, decodeUtf8With)
+import AbstractFilePath.Internal.Encode (encodeUtf16LE, encodeUtf8)
 
-import GHC.Exts
+import GHC.Exts ( IsString(..) )
 
 import qualified Data.ByteString.Short as BS
+import Data.Text.Encoding.Error (lenientDecode)
 
 
 -- Using unpinned bytearrays to avoid Heap fragmentation and
@@ -17,7 +19,9 @@ import qualified Data.ByteString.Short as BS
 -- FFI call, this overhead is generally much preferable to
 -- the memory fragmentation of pinned bytearrays
 data WindowsFilePath = WFP BS.ShortByteString -- UTF16 data
+  deriving (Eq, Ord)
 data PosixFilePath   = PFP BS.ShortByteString -- char[] data as passed to syscalls
+  deriving (Eq, Ord)
 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 type PlatformFilePath = WindowsFilePath
@@ -25,22 +29,24 @@ type PlatformFilePath = WindowsFilePath
 type PlatformFilePath = PosixFilePath
 #endif
 
--- | Total Unicode-friendly encoding
+-- | Total Unicode-friendly encoding.
 --
--- On windows this decodes as UTF16, which is expected.
--- On unix this decodes as UTF8, which is a good guess. Note that
--- filepaths on unix are encoding agnostic char arrays.
+-- On windows this encodes as UTF16, which is expected.
+-- On unix this encodes as UTF8, which is a good guess. Note that
+-- filenames on unix are encoding agnostic char arrays.
 toAbstractFilePath :: String -> AbstractFilePath
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-toAbstractFilePath = undefined
+toAbstractFilePath = AbstractFilePath . WFP . encodeUtf16LE
 #else
-toAbstractFilePath = undefined
+toAbstractFilePath = AbstractFilePath . PFP . encodeUtf8
 #endif
 
 
--- | On windows this decodes as UTF16 (which is the expected filename encoding).
+-- | Partial unicode friendly decoding.
+--
+-- On windows this decodes as UTF16 (which is the expected filename encoding).
 -- On unix this decodes as UTF8 (which is a good guess). Note that
--- filepathes on unix are encoding agnostic char arrays.
+-- filenames on unix are encoding agnostic char arrays.
 --
 -- Throws a 'UnicodeException' if decoding fails.
 fromAbstractFilePath :: AbstractFilePath -> String
@@ -50,26 +56,36 @@ fromAbstractFilePath (AbstractFilePath (WFP ba)) = decodeUtf16LE ba
 fromAbstractFilePath (AbstractFilePath (PFP ba)) = decodeUtf8 ba
 #endif
 
-fromAbstractFilePath' :: AbstractFilePath -> String
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromAbstractFilePath' (AbstractFilePath (WFP ba)) = decodeUtf16LE ba
-#else
-fromAbstractFilePath' (AbstractFilePath (PFP ba)) = decodeUtf8 ba
-#endif
-
-
 
 -- | Type representing filenames/pathnames.
 --
 -- On Windows, filepaths are expected to be in UTF16 as passed
 -- to syscalls.
 --
--- On unix, filepathes don't have a known encoding and are passed
+-- On unix, filepathes don't have a known encoding (although they
+-- are often interpreted as UTF8) and are passed
 -- as char arrays to syscalls.
+--
+-- This type uses an internal representation of unpinned
+-- 'ShortByteString' for efficiency.
+--
+-- The 'Eq' and 'Ord' instances are low-level and don't know about
+-- upper/lower filename shenanigans. They compare the bytes that
+-- are passed to syscalls.
+--
+-- 'IsString' calls 'toAbstractFilePath'.
 newtype AbstractFilePath = AbstractFilePath PlatformFilePath
+  deriving (Eq, Ord)
 
 instance IsString AbstractFilePath where 
     fromString = toAbstractFilePath
+
+instance Show AbstractFilePath where
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+  show (AbstractFilePath (WFP ba)) = decodeUtf16LEWith lenientDecode ba
+#else
+  show (AbstractFilePath (PFP ba)) = decodeUtf8With lenientDecode ba
+#endif
 
 -- | \"String-Concatenation\" for 'AbstractFilePaths'
 --
