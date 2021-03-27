@@ -24,6 +24,14 @@ jobs:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: ${{ matrix.cabal }}
 
+    - name: create ~/.local/bin
+      run: mkdir -p "$HOME/.local/bin"
+      shell: bash
+
+    - name: Add ~/.local/bin to PATH
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+      shell: bash
+
     - name: Cache
       uses: actions/cache@v1
       env:
@@ -39,6 +47,10 @@ jobs:
 
     - name: Update cabal index
       run: cabal update
+      shell: bash
+
+    - name: Install hspec-discover
+      run: cabal install --installdir="$HOME/.local/bin" --install-method=copy --overwrite-policy=always hspec-discover
       shell: bash
 
     - name: Build
