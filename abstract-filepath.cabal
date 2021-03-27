@@ -31,7 +31,7 @@ library
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:      base       ^>=4.14.1.0
+    build-depends:      base        >= 4.10 && < 5
                       , bytestring ^>= 0.10
                       , text       ^>= 1.2.4.1
     hs-source-dirs:   lib
@@ -44,7 +44,7 @@ test-suite abstract-filepath-test
     main-is:          Test.hs
     other-modules:    AbstractFilePathSpec
                       Arbitrary
-    build-depends:      base ^>=4.14.1.0
+    build-depends:      base >= 4.10 && < 5
                       , abstract-filepath
                       , checkers
                       , QuickCheck

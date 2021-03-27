@@ -158,15 +158,15 @@ instance Show AbstractFilePath where
 instance Monoid AbstractFilePath where 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
     mempty      = AbstractFilePath (WFP BS.empty)
+    mappend (AbstractFilePath (WFP a)) (AbstractFilePath (WFP b))
+      = AbstractFilePath (WFP (mappend a b))
 #else
     mempty      = AbstractFilePath (PFP BS.empty)
+    mappend (AbstractFilePath (PFP a)) (AbstractFilePath (PFP b))
+      = AbstractFilePath (PFP (mappend a b))
+#endif
+#if MIN_VERSION_base(4,11,0)
+instance Semigroup AbstractFilePath where 
+    (<>) = mappend
 #endif
 
-instance Semigroup AbstractFilePath where 
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-    (AbstractFilePath (WFP a)) <> (AbstractFilePath (WFP b))
-      = AbstractFilePath (WFP (a <> b))
-#else
-    (AbstractFilePath (PFP a)) <> (AbstractFilePath (PFP b))
-      = AbstractFilePath (PFP (a <> b))
-#endif
