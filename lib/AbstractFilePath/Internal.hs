@@ -60,6 +60,19 @@ fromAbstractFilePath (AbstractFilePath (PFP ba)) = decodeUtf8 ba
 #endif
 
 
+-- | Return the internal rerpresentation of the filepath
+-- as ByteString.
+--
+-- Note that this is rarely what you want. Use 'fromAbstractFilePath'
+-- instead or utilize the internal modules directly.
+toByteString :: AbstractFilePath -> ByteString
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+toByteString (AbstractFilePath (WFP ba)) = BS.fromShort ba
+#else
+toByteString (AbstractFilePath (PFP ba)) = BS.fromShort ba
+#endif
+
+
 data ByteStringStrategy
   = WinUtf16_UnixId
   -- ^ Ensure the bytestring is utf16 on windows and pass
@@ -70,6 +83,9 @@ data ByteStringStrategy
 
 -- | Predictably construct an 'AbstractFilePath' from
 -- a ByteString with the given strategy.
+--
+-- Note that this is rarely what you want. Use 'toAbstractFilePath'
+-- instead or utilize the internal modules directly.
 fromByteString :: ByteString
                -> ByteStringStrategy
                -> Maybe AbstractFilePath
@@ -87,6 +103,9 @@ fromByteString bs WinUtf16_UnixUtf8 =
 -- | Unsafely construct an 'AbstractFilePath' from
 -- a ByteString with no interpretation. This may cause
 -- syscalls to fail on windows on invalid Utf16 data.
+--
+-- Note that this is rarely what you want. Use 'toAbstractFilePath'
+-- instead or utilize the internal modules directly.
 fromByteStringUnsafe :: ByteString -> AbstractFilePath
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 fromByteStringUnsafe = AbstractFilePath . WFP . BS.toShort
