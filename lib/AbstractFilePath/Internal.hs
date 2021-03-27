@@ -2,13 +2,16 @@
 
 module AbstractFilePath.Internal where
 
-import AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf8, decodeUtf8With)
+import AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf8, decodeUtf8With, decodeUtf8')
 import AbstractFilePath.Internal.Encode (encodeUtf16LE, encodeUtf8)
 
+import Data.ByteString ( ByteString )
 import GHC.Exts ( IsString(..) )
 
-import qualified Data.ByteString.Short as BS
 import Data.Text.Encoding.Error (lenientDecode)
+
+import qualified Data.ByteString.Short as BS
+import qualified Data.Text.Encoding as E
 
 
 -- Using unpinned bytearrays to avoid Heap fragmentation and
@@ -54,6 +57,41 @@ fromAbstractFilePath :: AbstractFilePath -> String
 fromAbstractFilePath (AbstractFilePath (WFP ba)) = decodeUtf16LE ba
 #else
 fromAbstractFilePath (AbstractFilePath (PFP ba)) = decodeUtf8 ba
+#endif
+
+
+data ByteStringStrategy
+  = WinUtf16_UnixId
+  -- ^ Ensure the bytestring is utf16 on windows and pass
+  -- it unchecked on unix.
+  | WinUtf16_UnixUtf8
+  -- ^ Ensure the bytestring is utf16 on windows and utf8
+  -- on unix.
+
+-- | Predictably construct an 'AbstractFilePath' from
+-- a ByteString with the given strategy.
+fromByteString :: ByteString
+               -> ByteStringStrategy
+               -> Maybe AbstractFilePath
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+fromByteString bs _ =
+  either (const Nothing) (const . Just . AbstractFilePath . WFP . BS.toShort $ bs) $ decodeUtf16LE' bs
+#else
+fromByteString bs WinUtf16_UnixId =
+  Just . AbstractFilePath . PFP . BS.toShort $ bs
+fromByteString bs WinUtf16_UnixUtf8 =
+  either (const Nothing) (const . Just . AbstractFilePath . PFP . BS.toShort $ bs) $ decodeUtf8' bs
+#endif
+
+
+-- | Unsafely construct an 'AbstractFilePath' from
+-- a ByteString with no interpretation. This may cause
+-- syscalls to fail on windows on invalid Utf16 data.
+fromByteStringUnsafe :: ByteString -> AbstractFilePath
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+fromByteStringUnsafe = AbstractFilePath . WFP . BS.toShort
+#else
+fromByteStringUnsafe = AbstractFilePath . PFP . BS.toShort
 #endif
 
 

@@ -1,12 +1,12 @@
 {-# LANGUAGE RankNTypes #-}
 
-module AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf8, decodeUtf8With) where
+module AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf8, decodeUtf8With, decodeUtf8') where
 
 import Data.Bits ((.&.))
 import Data.ByteString (ByteString)
 import Data.ByteString.Short (ShortByteString)
 import Data.Text (Text)
-import Data.Text.Encoding.Error ( OnDecodeError, strictDecode )
+import Data.Text.Encoding.Error ( OnDecodeError, strictDecode, UnicodeException )
 import Data.Text.Internal.Fusion (Stream(..), Step)
 import Data.Text.Internal.Fusion.Size ( maxSize )
 import Data.Text.Internal.Fusion.Types ( Stream(..), Step(..) )
@@ -16,8 +16,11 @@ import Data.Text.Internal.Unsafe.Shift (shiftL, shiftR)
 import Data.Word ( Word8, Word16 )
 
 import qualified Data.ByteString.Short as BS (ShortByteString(..), toShort, fromShort, length, index)
+import qualified Data.Text.Encoding as E
 import qualified Data.Text.Internal.Encoding.Utf8 as U8
 import qualified Data.Text.Internal.Encoding.Utf16 as U16
+import GHC.IO (unsafeDupablePerformIO)
+import Control.Exception (evaluate, try)
 
 
 -- | /O(n)/ Convert a 'ByteString' into a 'Stream Char', using UTF-8
@@ -107,3 +110,21 @@ unstream (Stream next0 s0 _) = go s0
           Skip si'    -> go si'
           Yield c si' -> c : go si'
 {-# INLINE [0] unstream #-}
+
+
+-- | Decode a 'ByteString' containing UTF-8 encoded text.
+--
+-- If the input contains any invalid UTF-8 data, the relevant
+-- exception will be returned, otherwise the decoded text.
+decodeUtf8' :: ByteString -> Either UnicodeException Text
+decodeUtf8' = unsafeDupablePerformIO . try . evaluate . E.decodeUtf8With strictDecode
+{-# INLINE decodeUtf8' #-}
+
+
+-- | Decode a 'ByteString' containing UTF-16 encoded text.
+--
+-- If the input contains any invalid UTF-16 data, the relevant
+-- exception will be returned, otherwise the decoded text.
+decodeUtf16LE' :: ByteString -> Either UnicodeException Text
+decodeUtf16LE' = unsafeDupablePerformIO . try . evaluate . E.decodeUtf16LEWith strictDecode
+{-# INLINE decodeUtf16LE' #-}
