@@ -2,7 +2,7 @@ module AbstractFilePath
   (
   -- * Types
     AbstractFilePath
-  , ByteStringStrategy
+  , ByteStringStrategy (..)
 
   -- * construction
   , toAbstractFilePath
