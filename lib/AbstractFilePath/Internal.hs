@@ -81,7 +81,7 @@ data ByteStringStrategy
   -- ^ Ensure the bytestring is utf16 on windows and utf8
   -- on unix.
 
--- | Predictably construct an 'AbstractFilePath' from
+-- | Predictably construct an @AbstractFilePath@ from
 -- a ByteString with the given strategy.
 --
 -- Note that this is rarely what you want. Use 'toAbstractFilePath'
@@ -114,26 +114,32 @@ fromByteStringUnsafe = AbstractFilePath . PFP . BS.toShort
 #endif
 
 
--- | Type representing filenames/pathnames.
+-- | Type representing filenames/pathnames across platforms:
 --
--- On Windows, filepaths are expected to be in UTF16 as passed
--- to syscalls.
+-- - On /Windows/, filepaths are expected to be in UTF16 as passed to syscalls. This invariant is maintained by this type.
+-- - On /Unix/, filepaths don't have a predefined encoding (although they are often interpreted as UTF8) as per the <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170 POSIX specification> and are passed as @char[]@ to syscalls. The type maintains no invariant here. Some functions however, such as 'toAbstractFilePath', may expect or produce UTF8.
 --
--- On unix, filepathes don't have a known encoding (although they
--- are often interpreted as UTF8) and are passed
--- as char arrays to syscalls.
+-- Note that further filesystem specific restrictions may apply on
+-- all platforms. This library makes no attempt at satisfying these
+-- restrictions. Library users may need to account for that, depending
+-- on what filesystems they want to support.
 --
 -- This type uses an internal representation of unpinned
--- 'ShortByteString' for efficiency.
---
--- The 'Eq' and 'Ord' instances are low-level and don't know about
--- upper/lower filename shenanigans. They compare the bytes that
--- are passed to syscalls.
---
--- 'IsString' calls 'toAbstractFilePath'.
+-- 'ShortByteString' for efficiency. If you need access to
+-- it for low-level purposes or writing platform-specific code,
+-- import "AbstractFilePath.Internal", which exposes the
+-- private constructors.
 newtype AbstractFilePath = AbstractFilePath PlatformFilePath
-  deriving (Eq, Ord)
 
+-- | Byte equality of the internal representation.
+instance Eq AbstractFilePath where
+  (AbstractFilePath a) == (AbstractFilePath b) = a == b
+
+-- | Byte ordering of the internal representation.
+instance Ord AbstractFilePath where
+  compare (AbstractFilePath a) (AbstractFilePath b) = compare a b
+
+-- | Calls 'toAbstractFilePath'. This instance is total.
 instance IsString AbstractFilePath where 
     fromString = toAbstractFilePath
 
