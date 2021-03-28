@@ -7,11 +7,15 @@ import AbstractFilePath.Internal.Encode (encodeUtf16LE, encodeUtf8)
 
 import Data.ByteString ( ByteString )
 import GHC.Exts ( IsString(..) )
+import GHC.IO.Encoding ( getFileSystemEncoding )
+
+import Control.Monad.Catch (MonadThrow, throwM)
 
 import Data.Text.Encoding.Error (lenientDecode)
 
 import qualified Data.ByteString.Short as BS
 import qualified Data.Text.Encoding as E
+import qualified GHC.Foreign as GHC
 
 
 -- Using unpinned bytearrays to avoid Heap fragmentation and
@@ -35,13 +39,26 @@ type PlatformFilePath = PosixFilePath
 -- | Total Unicode-friendly encoding.
 --
 -- On windows this encodes as UTF16, which is expected.
--- On unix this encodes as UTF8, which is a good guess. Note that
--- filenames on unix are encoding agnostic char arrays.
+-- On unix this encodes as UTF8, which is a good guess.
 toAbstractFilePath :: String -> AbstractFilePath
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 toAbstractFilePath = AbstractFilePath . WFP . encodeUtf16LE
 #else
 toAbstractFilePath = AbstractFilePath . PFP . encodeUtf8
+#endif
+
+
+-- | Like 'toAbstractFilePath', except on unix this uses the current
+-- locale for encoding instead of always UTF8. Looking up the locale
+-- requires IO.
+toAbstractFilePath' :: String -> IO AbstractFilePath
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+toAbstractFilePath' = AbstractFilePath . WFP . encodeUtf16LE
+#else
+toAbstractFilePath' str = do
+  enc <- getFileSystemEncoding
+  cstr <- GHC.newCString enc str
+  AbstractFilePath . PFP <$> BS.packCString cstr
 #endif
 
 
@@ -52,6 +69,9 @@ toAbstractFilePath = AbstractFilePath . PFP . encodeUtf8
 -- filenames on unix are encoding agnostic char arrays.
 --
 -- Throws a 'UnicodeException' if decoding fails.
+--
+-- Note that filenames of different encodings may have the same @String@
+-- representation, although they're not the same byte-wise.
 fromAbstractFilePath :: AbstractFilePath -> String
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 fromAbstractFilePath (AbstractFilePath (WFP ba)) = decodeUtf16LE ba
@@ -60,75 +80,44 @@ fromAbstractFilePath (AbstractFilePath (PFP ba)) = decodeUtf8 ba
 #endif
 
 
--- | Return the internal rerpresentation of the filepath
--- as ByteString.
---
--- Note that this is rarely what you want. Use 'fromAbstractFilePath'
--- instead or utilize the internal modules directly.
-toByteString :: AbstractFilePath -> ByteString
+-- | Like 'fromAbstractFilePath', except on unix this uses the current
+-- locale for decoding instead of always UTF8. Looking up the locale
+-- requires IO.
+fromAbstractFilePath' :: AbstractFilePath -> IO String
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-toByteString (AbstractFilePath (WFP ba)) = BS.fromShort ba
+fromAbstractFilePath' (AbstractFilePath (WFP ba)) = pure $ decodeUtf16LE ba
 #else
-toByteString (AbstractFilePath (PFP ba)) = BS.fromShort ba
+fromAbstractFilePath' (AbstractFilePath (PFP ba)) = BS.useAsCString ba $ \fp ->
+  getFileSystemEncoding >>= \enc -> GHC.peekCString enc fp
 #endif
 
 
-data ByteStringStrategy
-  = WinUtf16_UnixId
-  -- ^ Ensure the bytestring is utf16 on windows and pass
-  -- it unchecked on unix.
-  | WinUtf16_UnixUtf8
-  -- ^ Ensure the bytestring is utf16 on windows and utf8
-  -- on unix.
-
--- | Predictably construct an @AbstractFilePath@ from
--- a ByteString with the given strategy.
+-- | Constructs an @AbstractFilePath@ from a ByteString.
 --
--- Note that this is rarely what you want. Use 'toAbstractFilePath'
--- instead or utilize the internal modules directly.
-fromByteString :: ByteString
-               -> ByteStringStrategy
-               -> Maybe AbstractFilePath
+-- On windows, this ensures valid UTF16, on unix it is passed unchanged/unchecked.
+--
+-- Throws 'UnicodeException' on invalid UTF16 on windows.
+fromByteString :: MonadThrow m
+               => ByteString
+               -> m AbstractFilePath
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromByteString bs _ =
-  either (const Nothing) (const . Just . AbstractFilePath . WFP . BS.toShort $ bs) $ decodeUtf16LE' bs
+fromByteString bs =
+  either throwM (const . pure . AbstractFilePath . WFP . BS.toShort $ bs) $ decodeUtf16LE' bs
 #else
-fromByteString bs WinUtf16_UnixId =
-  Just . AbstractFilePath . PFP . BS.toShort $ bs
-fromByteString bs WinUtf16_UnixUtf8 =
-  either (const Nothing) (const . Just . AbstractFilePath . PFP . BS.toShort $ bs) $ decodeUtf8' bs
+fromByteString = pure . AbstractFilePath . PFP . BS.toShort
 #endif
 
 
--- | Unsafely construct an 'AbstractFilePath' from
--- a ByteString with no interpretation. This may cause
--- syscalls to fail on windows on invalid Utf16 data.
+-- | Type representing filenames\/pathnames across platforms.
 --
--- Note that this is rarely what you want. Use 'toAbstractFilePath'
--- instead or utilize the internal modules directly.
-fromByteStringUnsafe :: ByteString -> AbstractFilePath
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromByteStringUnsafe = AbstractFilePath . WFP . BS.toShort
-#else
-fromByteStringUnsafe = AbstractFilePath . PFP . BS.toShort
-#endif
-
-
--- | Type representing filenames/pathnames across platforms:
---
--- - On /Windows/, filepaths are expected to be in UTF16 as passed to syscalls. This invariant is maintained by this type.
--- - On /Unix/, filepaths don't have a predefined encoding (although they are often interpreted as UTF8) as per the <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170 POSIX specification> and are passed as @char[]@ to syscalls. The type maintains no invariant here. Some functions however, such as 'toAbstractFilePath', may expect or produce UTF8.
---
--- Note that further filesystem specific restrictions may apply on
--- all platforms. This library makes no attempt at satisfying these
--- restrictions. Library users may need to account for that, depending
--- on what filesystems they want to support.
---
--- This type uses an internal representation of unpinned
--- 'ShortByteString' for efficiency. If you need access to
+-- Uses an internal representation of unpinned
+-- 'ShortByteString' for efficiency and correctness. If you need access to
 -- it for low-level purposes or writing platform-specific code,
 -- import "AbstractFilePath.Internal", which exposes the
 -- private constructors.
+--
+-- As an example of platform specific code, consider the implementation of
+-- 'fromAbstractFilePath'.
 newtype AbstractFilePath = AbstractFilePath PlatformFilePath
 
 -- | Byte equality of the internal representation.
