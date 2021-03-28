@@ -21,7 +21,7 @@
 -- - On /Unix/, filepaths don't have a predefined encoding (although they
 --   are often interpreted as UTF8) as per the
 --   <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170 POSIX specification>
---   and are passed as @char[]@ to shttps://files.hasufell.de/jule/abstract-filepath/AbstractFilePath.htmlyscalls. 'AbstractFilePath' maintains no invariant
+--   and are passed as @char[]@ to syscalls. 'AbstractFilePath' maintains no invariant
 --   here. Some functions however, such as 'toAbstractFilePath', may expect
 --   or produce UTF8.
 --
@@ -35,7 +35,7 @@
 -- 1. Avoid interpreting filenames that the OS returns, unless absolutely necessary.
 -- 2. When interpreting OS returned filenames consider that these might not be UTF8 on /unix/
 --    or at worst don't have an ASCII compatible encoding. Some strategies here involve looking
---    up the current locale and use that for decoding ('fromAbstractFilePath'' does this).
+--    up the current locale and using that for decoding ('fromAbstractFilePath'' does this).
 --    Otherwise it can be reasonable to assume UTF8 on unix ('fromAbstractFilePath' does that) if your application specifically
 --    mentions that it requires a UTF8 compatible system. These things should be documented.
 -- 3. When dealing with user input (e.g. on the command line) on /unix/ as e.g. @String@ the input
@@ -49,6 +49,8 @@ module AbstractFilePath
   (
   -- * Types
     AbstractFilePath
+  , WindowsFilePath(..)
+  , PosixFilePath(..)
 
   -- * Construction
   , toAbstractFilePath
@@ -61,4 +63,4 @@ module AbstractFilePath
   )
 where
 
-import AbstractFilePath.Internal ( AbstractFilePath, toAbstractFilePath, toAbstractFilePath', fromByteString, fromAbstractFilePath, fromAbstractFilePath' )
+import AbstractFilePath.Internal ( AbstractFilePath, WindowsFilePath(..), PosixFilePath(..), toAbstractFilePath, toAbstractFilePath', fromByteString, fromAbstractFilePath, fromAbstractFilePath' )

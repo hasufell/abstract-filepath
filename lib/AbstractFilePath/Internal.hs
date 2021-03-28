@@ -26,9 +26,12 @@ import Control.Exception (throwIO)
 -- Note that, while unpinned bytearrays incur a memcpy on each
 -- FFI call, this overhead is generally much preferable to
 -- the memory fragmentation of pinned bytearrays
-data WindowsFilePath = WFP BS.ShortByteString -- UTF16 data
+
+-- | Filepaths are UTF16 data on windows as passed to syscalls.
+data WindowsFilePath = WFP BS.ShortByteString 
   deriving (Eq, Ord)
-data PosixFilePath   = PFP BS.ShortByteString -- char[] data as passed to syscalls
+-- | Filepaths are @char[]@ data on unix as passed to syscalls.
+data PosixFilePath   = PFP BS.ShortByteString
   deriving (Eq, Ord)
 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
@@ -109,16 +112,16 @@ fromByteString = pure . AbstractFilePath . PFP . BS.toShort
 #endif
 
 
--- | Type representing filenames\/pathnames across platforms.
+-- | Type representing filenames\/pathnames.
 --
--- Uses an internal representation of unpinned
--- 'ShortByteString' for efficiency and correctness. If you need access to
--- it for low-level purposes or writing platform-specific code,
--- import "AbstractFilePath.Internal", which exposes the
--- private constructors.
+-- Internally this is either 'WindowsFilePath' or 'PosixFilePath',
+-- depending on the platform. Both use unpinned
+-- 'ShortByteString' for efficiency and correctness.
 --
--- As an example of platform specific code, consider the implementation of
--- 'fromAbstractFilePath'.
+-- The constructor is only exported via "AbstractFilePath.Internal", since
+-- dealing with the internals isn't generally recommended, but supported
+-- in case you need to write platform specific code, such as the implementation
+-- of 'fromAbstractFilePath'.
 newtype AbstractFilePath = AbstractFilePath PlatformFilePath
 
 -- | Byte equality of the internal representation.
