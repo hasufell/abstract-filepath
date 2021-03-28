@@ -69,15 +69,13 @@ toAbstractFilePath' str = do
 -- On unix this decodes as UTF8 (which is a good guess). Note that
 -- filenames on unix are encoding agnostic char arrays.
 --
--- Throws a 'UnicodeException' if decoding fails.
---
 -- Note that filenames of different encodings may have the same @String@
 -- representation, although they're not the same byte-wise.
-fromAbstractFilePath :: MonadThrow m => AbstractFilePath -> m String
+fromAbstractFilePath :: AbstractFilePath -> String
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromAbstractFilePath (AbstractFilePath (WFP ba)) = either throwM pure $ decodeUtf16LE' ba
+fromAbstractFilePath (AbstractFilePath (WFP ba)) = decodeUtf16LE ba
 #else
-fromAbstractFilePath (AbstractFilePath (PFP ba)) = either throwM pure $ decodeUtf8' ba
+fromAbstractFilePath (AbstractFilePath (PFP ba)) = decodeUtf8 ba
 #endif
 
 
