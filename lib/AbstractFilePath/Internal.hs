@@ -5,18 +5,18 @@ module AbstractFilePath.Internal where
 import AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf16LE'', decodeUtf8, decodeUtf8With, decodeUtf8')
 import AbstractFilePath.Internal.Encode (encodeUtf16LE, encodeUtf8)
 
+import Control.Exception (throwIO)
+import Control.Monad.Catch (MonadThrow, throwM)
 import Data.ByteString ( ByteString )
+import Data.Text.Encoding.Error (lenientDecode, UnicodeException(..))
 import GHC.Exts ( IsString(..) )
 import GHC.IO.Encoding ( getFileSystemEncoding )
-
-import Control.Monad.Catch (MonadThrow, throwM)
-
-import Data.Text.Encoding.Error (lenientDecode)
+import GHC.IO.Exception (IOErrorType(InvalidArgument) )
+import System.IO.Error (catchIOError)
 
 import qualified Data.ByteString.Short as BS
 import qualified Data.Text.Encoding as E
 import qualified GHC.Foreign as GHC
-import Control.Exception (throwIO)
 
 
 -- Using unpinned bytearrays to avoid Heap fragmentation and
@@ -29,10 +29,10 @@ import Control.Exception (throwIO)
 
 -- | Filepaths are UTF16 data on windows as passed to syscalls.
 data WindowsFilePath = WFP BS.ShortByteString 
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 -- | Filepaths are @char[]@ data on unix as passed to syscalls.
 data PosixFilePath   = PFP BS.ShortByteString
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 type PlatformFilePath = WindowsFilePath
@@ -53,8 +53,10 @@ toAbstractFilePath = AbstractFilePath . PFP . encodeUtf8
 
 
 -- | Like 'toAbstractFilePath', except on unix this uses the current
--- locale for encoding instead of always UTF8. Looking up the locale
--- requires IO.
+-- locale for encoding instead of always UTF8.
+--
+-- Looking up the locale requires IO. If you're not worried about calls
+-- to 'setFileSystemEncoding', then 'unsafePerformIO' may be feasible.
 toAbstractFilePath' :: String -> IO AbstractFilePath
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 toAbstractFilePath' = AbstractFilePath . WFP . encodeUtf16LE
@@ -85,14 +87,18 @@ fromAbstractFilePath (AbstractFilePath (PFP ba)) = either throwM pure $ decodeUt
 
 
 -- | Like 'fromAbstractFilePath', except on unix this uses the current
--- locale for decoding instead of always UTF8. Looking up the locale
--- requires IO.
+-- locale for decoding instead of always UTF8.
+--
+-- Looking up the locale requires IO. If you're not worried about calls
+-- to 'setFileSystemEncoding', then 'unsafePerformIO' may be feasible.
+--
+-- Throws 'UnicodeException' if decoding fails.
 fromAbstractFilePath' :: AbstractFilePath -> IO String
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 fromAbstractFilePath' (AbstractFilePath (WFP ba)) = either throwIO pure $ decodeUtf16LE' ba
 #else
-fromAbstractFilePath' (AbstractFilePath (PFP ba)) = BS.useAsCString ba $ \fp ->
-  getFileSystemEncoding >>= \enc -> GHC.peekCString enc fp
+fromAbstractFilePath' (AbstractFilePath (PFP ba)) = flip catchIOError (\_ -> throwIO (DecodeError "fromAbstractFilePath' failed" Nothing))
+  $ BS.useAsCString ba $ \fp -> getFileSystemEncoding >>= \enc -> GHC.peekCString enc fp
 #endif
 
 
@@ -123,6 +129,7 @@ fromByteString = pure . AbstractFilePath . PFP . BS.toShort
 -- in case you need to write platform specific code, such as the implementation
 -- of 'fromAbstractFilePath'.
 newtype AbstractFilePath = AbstractFilePath PlatformFilePath
+  deriving Show
 
 -- | Byte equality of the internal representation.
 instance Eq AbstractFilePath where
@@ -132,28 +139,12 @@ instance Eq AbstractFilePath where
 instance Ord AbstractFilePath where
   compare (AbstractFilePath a) (AbstractFilePath b) = compare a b
 
--- | Calls 'toAbstractFilePath'. This instance is total.
+-- | Encodes as UTF16 on windows and UTF8 on unix.
 instance IsString AbstractFilePath where 
     fromString = toAbstractFilePath
 
-instance Show AbstractFilePath where
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-  show (AbstractFilePath (WFP ba)) = decodeUtf16LEWith lenientDecode ba
-#else
-  show (AbstractFilePath (PFP ba)) = decodeUtf8With lenientDecode ba
-#endif
-
--- | \"String-Concatenation\" for 'AbstractFilePaths'
---
--- This allows to write forward-compatible code for Haskell2010 'FilePath`s
---
--- E.g. code can be written (assuming `-XOverloadedStrings`) like
---
--- > tarfname = basedir </> "ghc-" <> ver <> "~" <> gitid <.> "tar.xz"
---
--- That has the same semantics with pre-AFPP and post-AFPP 'FilePath's
---
--- NB: 'mappend' is *not* the same as '(</>)', but rather matches the semantics for pre-AFPP 'FilePaths'
+-- | \"String-Concatenation\" for 'AbstractFilePath'. This is __not__ the same
+-- as '(</>)'.
 instance Monoid AbstractFilePath where 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
     mempty      = AbstractFilePath (WFP BS.empty)
