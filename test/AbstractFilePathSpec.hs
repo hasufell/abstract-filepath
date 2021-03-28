@@ -25,7 +25,7 @@ spec = do
       property $ \str -> (decodeUtf16LE . encodeUtf16LE) str == str
 
     it "fromAbstractFilePath . toAbstractFilePath == id" $
-      property $ \str -> (fromAbstractFilePath . toAbstractFilePath) str == str
+      property $ \str -> (fromAbstractFilePath . toAbstractFilePath) str == Just str
 
   testBatch (ord (\(a :: AbstractFilePath) -> pure a))
   testBatch (monoid (undefined :: AbstractFilePath))
