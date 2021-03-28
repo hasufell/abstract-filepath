@@ -2,7 +2,7 @@
 
 module AbstractFilePath.Internal where
 
-import AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf8, decodeUtf8With, decodeUtf8')
+import AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf16LE'', decodeUtf8, decodeUtf8With, decodeUtf8')
 import AbstractFilePath.Internal.Encode (encodeUtf16LE, encodeUtf8)
 
 import Data.ByteString ( ByteString )
@@ -16,6 +16,7 @@ import Data.Text.Encoding.Error (lenientDecode)
 import qualified Data.ByteString.Short as BS
 import qualified Data.Text.Encoding as E
 import qualified GHC.Foreign as GHC
+import Control.Exception (throwIO)
 
 
 -- Using unpinned bytearrays to avoid Heap fragmentation and
@@ -72,11 +73,11 @@ toAbstractFilePath' str = do
 --
 -- Note that filenames of different encodings may have the same @String@
 -- representation, although they're not the same byte-wise.
-fromAbstractFilePath :: AbstractFilePath -> String
+fromAbstractFilePath :: MonadThrow m => AbstractFilePath -> m String
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromAbstractFilePath (AbstractFilePath (WFP ba)) = decodeUtf16LE ba
+fromAbstractFilePath (AbstractFilePath (WFP ba)) = either throwM pure $ decodeUtf16LE' ba
 #else
-fromAbstractFilePath (AbstractFilePath (PFP ba)) = decodeUtf8 ba
+fromAbstractFilePath (AbstractFilePath (PFP ba)) = either throwM pure $ decodeUtf8' ba
 #endif
 
 
@@ -85,7 +86,7 @@ fromAbstractFilePath (AbstractFilePath (PFP ba)) = decodeUtf8 ba
 -- requires IO.
 fromAbstractFilePath' :: AbstractFilePath -> IO String
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromAbstractFilePath' (AbstractFilePath (WFP ba)) = pure $ decodeUtf16LE ba
+fromAbstractFilePath' (AbstractFilePath (WFP ba)) = either throwIO pure $ decodeUtf16LE' ba
 #else
 fromAbstractFilePath' (AbstractFilePath (PFP ba)) = BS.useAsCString ba $ \fp ->
   getFileSystemEncoding >>= \enc -> GHC.peekCString enc fp
@@ -102,7 +103,7 @@ fromByteString :: MonadThrow m
                -> m AbstractFilePath
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 fromByteString bs =
-  either throwM (const . pure . AbstractFilePath . WFP . BS.toShort $ bs) $ decodeUtf16LE' bs
+  either throwM (const . pure . AbstractFilePath . WFP . BS.toShort $ bs) $ decodeUtf16LE'' bs
 #else
 fromByteString = pure . AbstractFilePath . PFP . BS.toShort
 #endif
@@ -164,4 +165,3 @@ instance Monoid AbstractFilePath where
 instance Semigroup AbstractFilePath where 
     (<>) = mappend
 #endif
-

@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 
-module AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf8, decodeUtf8With, decodeUtf8') where
+module AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf16LE'', decodeUtf8, decodeUtf8With, decodeUtf8') where
 
 import Data.Bits ((.&.))
 import Data.ByteString (ByteString)
@@ -112,19 +112,29 @@ unstream (Stream next0 s0 _) = go s0
 {-# INLINE [0] unstream #-}
 
 
--- | Decode a 'ByteString' containing UTF-8 encoded text.
+-- | Decode a 'ShortByteString' containing UTF-8 encoded text.
 --
 -- If the input contains any invalid UTF-8 data, the relevant
 -- exception will be returned, otherwise the decoded text.
-decodeUtf8' :: ByteString -> Either UnicodeException Text
-decodeUtf8' = unsafeDupablePerformIO . try . evaluate . E.decodeUtf8With strictDecode
+decodeUtf8' :: ShortByteString -> Either UnicodeException String
+decodeUtf8' = unsafeDupablePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
+
+
+-- | Decode a 'ShortByteString' containing UTF-16 encoded text.
+--
+-- If the input contains any invalid UTF-16 data, the relevant
+-- exception will be returned, otherwise the decoded text.
+decodeUtf16LE' :: ShortByteString -> Either UnicodeException String
+decodeUtf16LE' = unsafeDupablePerformIO . try . evaluate . decodeUtf16LEWith strictDecode
+{-# INLINE decodeUtf16LE' #-}
 
 
 -- | Decode a 'ByteString' containing UTF-16 encoded text.
 --
 -- If the input contains any invalid UTF-16 data, the relevant
 -- exception will be returned, otherwise the decoded text.
-decodeUtf16LE' :: ByteString -> Either UnicodeException Text
-decodeUtf16LE' = unsafeDupablePerformIO . try . evaluate . E.decodeUtf16LEWith strictDecode
-{-# INLINE decodeUtf16LE' #-}
+decodeUtf16LE'' :: ByteString -> Either UnicodeException Text
+decodeUtf16LE'' = unsafeDupablePerformIO . try . evaluate . E.decodeUtf16LEWith strictDecode
+{-# INLINE decodeUtf16LE'' #-}
+
