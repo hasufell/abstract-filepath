@@ -133,9 +133,11 @@ filepathIsValid :: AbstractFilePath
                 -> Bool
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 filepathIsValid (AbstractFilePath (WFP ba)) =
-  and . fmap (not . flip elem notPermitted) . BS.unpack $ ba
+  (and . fmap (not . flip elem notPermittedChars) . BS.unpack $ ba)
+  &&
+  (not $ elem ba notPermittedNames)
   where
-    notPermitted =
+    notPermittedChars =
       [ _nul
       , _less
       , _greater
@@ -145,6 +147,30 @@ filepathIsValid (AbstractFilePath (WFP ba)) =
       , _bar
       , _question
       , _asterisk
+      ]
+    notPermittedNames = fromString <$>
+      [ "CON"
+      , "PRN"
+      , "AUX"
+      , "NUL"
+      , "COM1"
+      , "COM2"
+      , "COM3"
+      , "COM4"
+      , "COM5"
+      , "COM6"
+      , "COM7"
+      , "COM8"
+      , "COM9"
+      , "LPT1"
+      , "LPT2"
+      , "LPT3"
+      , "LPT4"
+      , "LPT5"
+      , "LPT6"
+      , "LPT7"
+      , "LPT8"
+      , "LPT9"
       ]
 #else
 filepathIsValid (AbstractFilePath (PFP ba)) = not $ elem _nul $ BS.unpack ba
