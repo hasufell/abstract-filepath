@@ -17,7 +17,8 @@
 -- It is important to know that filenames\/filepaths have different representations across platforms:
 --
 -- - On /Windows/, filepaths are expected to be in UTF16 as passed to
---   syscalls. This invariant is maintained by 'AbstractFilePath'.
+--   syscalls (although there are other APIs, the <https://hackage.haskell.org/package/Win32 Win32> package uses the wide character one).
+--   This invariant is maintained by 'AbstractFilePath'.
 -- - On /Unix/, filepaths don't have a predefined encoding (although they
 --   are often interpreted as UTF8) as per the
 --   <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170 POSIX specification>
@@ -25,14 +26,26 @@
 --   here. Some functions however, such as 'toAbstractFilePath', may expect
 --   or produce UTF8.
 --
--- Note that further filesystem specific restrictions may apply on
--- all platforms. This library makes no attempt at satisfying these
--- restrictions. Library users may need to account for that, depending
+-- Apart from encoding, filepaths have additional restrictions per platform:
+--
+-- - On /Windows/ the <https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions naming convention> may apply
+-- - On /Unix/, only @NUL@ bytes are disallowed as per the <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170 POSIX specification>
+--
+-- Use 'filePathIsValid' to check for these restrictions ('AbstractFilePath' doesn't
+-- maintain this invariant).
+--
+-- Also note that these restrictions are
+-- not exhaustive and further filesystem specific restrictions may apply on
+-- all platforms. This library makes no attempt at satisfying these.
+-- Library users may need to account for that, depending
 -- on what filesystems they want to support.
 --
 -- It is advised to follow these principles when dealing with filepaths\/filenames:
 --
 -- 1. Avoid interpreting filenames that the OS returns, unless absolutely necessary.
+--    For example, the filepath separator is usually a predefined 'Word8', regardless of encoding.
+--    So even if we need to split filepaths, it might still not be necessary to understand the encoding
+--    of the filename.
 -- 2. When interpreting OS returned filenames consider that these might not be UTF8 on /unix/
 --    or at worst don't have an ASCII compatible encoding. Some strategies here involve looking
 --    up the current locale and using that for decoding ('fromAbstractFilePath'' does this).
