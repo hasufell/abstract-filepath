@@ -121,10 +121,10 @@ fromByteString = pure . AbstractFilePath . PFP . BS.toShort
 
 -- | This is a fuzzy check whether a filepath is valid.
 --
--- On UNIX, this
+-- On /Unix/, this
 -- checks only for the absence of NUL bytes according to the <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170 POSIX specification>.
 --
--- On Windows, this does a best effort following the <https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions naming conventions>, which
+-- On /Windows/, this does a best effort following the <https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions naming conventions>, which
 -- is not exhaustive.
 --
 -- Further filestysem restrictions may apply. Use this function with caution,
