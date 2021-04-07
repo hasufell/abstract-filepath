@@ -136,12 +136,12 @@ filepathIsValid (AbstractFilePath (WFP ba)) =
   and . fmap (not . flip elem notPermitted) . BS.unpack $ ba
   where
     notPermitted =
-      [ _less
+      [ _nul
+      , _less
       , _greater
       , _colon
       , _quotedbl
       , _slash
-      , _backslash
       , _bar
       , _question
       , _asterisk
