@@ -9,6 +9,7 @@ import Control.Exception (throwIO)
 import Control.Monad.Catch (MonadThrow, throwM)
 import Data.ByteString ( ByteString )
 import Data.Text.Encoding.Error (lenientDecode, UnicodeException(..))
+import Data.Word8 (_nul, _less, _greater, _colon, _quotedbl, _slash, _backslash, _bar, _question, _asterisk)
 import GHC.Exts ( IsString(..) )
 import GHC.IO.Encoding ( getFileSystemEncoding )
 import GHC.IO.Exception (IOErrorType(InvalidArgument) )
@@ -115,6 +116,38 @@ fromByteString bs =
   either throwM (const . pure . AbstractFilePath . WFP . BS.toShort $ bs) $ decodeUtf16LE'' bs
 #else
 fromByteString = pure . AbstractFilePath . PFP . BS.toShort
+#endif
+
+
+-- | This is a fuzzy check whether a filepath is valid.
+--
+-- On UNIX, this
+-- checks only for the absence of NUL bytes according to the <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170 POSIX specification>.
+--
+-- On Windows, this does a best effort following the <https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions naming conventions>, which
+-- is not exhaustive.
+--
+-- Further filestysem restrictions may apply. Use this function with caution,
+-- preferably with user input. Don't run this on filepaths *returned* by a syscall.
+filepathIsValid :: AbstractFilePath
+                -> Bool
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+filepathIsValid (AbstractFilePath (WFP ba)) =
+  and . fmap (not . flip elem notPermitted) . BS.unpack $ ba
+  where
+    notPermitted =
+      [ _less
+      , _greater
+      , _colon
+      , _quotedbl
+      , _slash
+      , _backslash
+      , _bar
+      , _question
+      , _asterisk
+      ]
+#else
+filepathIsValid (AbstractFilePath (PFP ba)) = not $ elem _nul $ BS.unpack ba
 #endif
 
 

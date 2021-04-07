@@ -73,7 +73,10 @@ module AbstractFilePath
   -- * Deconstruction
   , fromAbstractFilePath
   , fromAbstractFilePath'
+
+  -- * Examination
+  , filepathIsValid
   )
 where
 
-import AbstractFilePath.Internal ( AbstractFilePath, WindowsFilePath(..), PosixFilePath(..), toAbstractFilePath, toAbstractFilePath', fromByteString, fromAbstractFilePath, fromAbstractFilePath' )
+import AbstractFilePath.Internal ( AbstractFilePath, WindowsFilePath(..), PosixFilePath(..), toAbstractFilePath, toAbstractFilePath', fromByteString, fromAbstractFilePath, fromAbstractFilePath', filepathIsValid )
