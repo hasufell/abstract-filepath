@@ -69,6 +69,7 @@ module AbstractFilePath
   , toAbstractFilePath
   , toAbstractFilePath'
   , fromByteString
+  , absFP
 
   -- * Deconstruction
   , fromAbstractFilePath
@@ -79,4 +80,4 @@ module AbstractFilePath
   )
 where
 
-import AbstractFilePath.Internal ( AbstractFilePath, WindowsFilePath(..), PosixFilePath(..), toAbstractFilePath, toAbstractFilePath', fromByteString, fromAbstractFilePath, fromAbstractFilePath', filepathIsValid )
+import AbstractFilePath.Internal ( AbstractFilePath, WindowsFilePath(..), PosixFilePath(..), toAbstractFilePath, toAbstractFilePath', fromByteString, fromAbstractFilePath, fromAbstractFilePath', filepathIsValid, absFP )

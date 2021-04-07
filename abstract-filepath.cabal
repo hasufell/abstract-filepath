@@ -34,6 +34,7 @@ library
     build-depends:      base        >= 4.10 && < 5
                       , bytestring ^>= 0.10
                       , exceptions ^>= 0.10
+                      , template-haskell >= 2.16 && < 2.20
                       , text       ^>= 1.2.4.1
                       , word8      ^>= 0.1
     hs-source-dirs:   lib

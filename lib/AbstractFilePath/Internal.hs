@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, RankNTypes, UnliftedFFITypes #-}
+{-# LANGUAGE CPP, RankNTypes, UnliftedFFITypes, TemplateHaskell #-}
 
 module AbstractFilePath.Internal where
 
@@ -10,14 +10,21 @@ import Control.Monad.Catch (MonadThrow, throwM)
 import Data.ByteString ( ByteString )
 import Data.Text.Encoding.Error (lenientDecode, UnicodeException(..))
 import Data.Word8 (_nul, _less, _greater, _colon, _quotedbl, _slash, _backslash, _bar, _question, _asterisk)
+import Data.Proxy ( Proxy (..) )
+import Data.Typeable
 import GHC.Exts ( IsString(..) )
 import GHC.IO.Encoding ( getFileSystemEncoding )
 import GHC.IO.Exception (IOErrorType(InvalidArgument) )
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax (Lift(..), lift)
+import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import System.IO.Error (catchIOError)
 
 import qualified Data.ByteString.Short as BS
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 import qualified GHC.Foreign as GHC
+import qualified Language.Haskell.TH.Syntax as TH
 
 
 -- Using unpinned bytearrays to avoid Heap fragmentation and
@@ -136,6 +143,8 @@ filepathIsValid (AbstractFilePath (WFP ba)) =
   (and . fmap (not . flip elem notPermittedChars) . BS.unpack $ ba)
   &&
   (not $ elem ba notPermittedNames)
+  &&
+  (not $ BS.null ba)
   where
     notPermittedChars =
       [ _nul
@@ -173,7 +182,9 @@ filepathIsValid (AbstractFilePath (WFP ba)) =
       , "LPT9"
       ]
 #else
-filepathIsValid (AbstractFilePath (PFP ba)) = not $ elem _nul $ BS.unpack ba
+filepathIsValid (AbstractFilePath (PFP ba))
+  = (not $ elem _nul $ BS.unpack ba)
+  && (not . BS.null $ ba)
 #endif
 
 
@@ -218,3 +229,50 @@ instance Monoid AbstractFilePath where
 instance Semigroup AbstractFilePath where 
     (<>) = mappend
 #endif
+
+
+instance Lift AbstractFilePath where
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+  lift (AbstractFilePath (WFP bs))
+    = [| AbstractFilePath (WFP (BS.pack $(lift $ BS.unpack bs))) :: AbstractFilePath |]
+#else
+  lift (AbstractFilePath (PFP bs))
+    = [| AbstractFilePath (PFP (BS.pack $(lift $ BS.unpack bs))) :: AbstractFilePath |]
+#endif
+#if MIN_VERSION_template_haskell(2,17,0)
+  liftTyped = TH.unsafeCodeCoerce . TH.lift
+#elif MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = TH.unsafeTExpCoerce . TH.lift
+#endif
+
+qq :: (ByteString -> Q Exp) -> QuasiQuoter
+qq quoteExp' =
+  QuasiQuoter
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+  { quoteExp  = (\s -> quoteExp' . E.encodeUtf16LE . T.pack $ s)
+#else
+  { quoteExp  = (\s -> quoteExp' . E.encodeUtf8 . T.pack $ s)
+#endif
+  , quotePat  = \_ ->
+      fail "illegal QuasiQuote (allowed as expression only, used as a pattern)"
+  , quoteType = \_ ->
+      fail "illegal QuasiQuote (allowed as expression only, used as a type)"
+  , quoteDec  = \_ ->
+      fail "illegal QuasiQuote (allowed as expression only, used as a declaration)"
+  }
+
+mkAbstractFilePath :: ByteString -> Q Exp
+mkAbstractFilePath bs = 
+  case fromByteString bs of
+    Just afp ->
+      if filepathIsValid afp
+      then lift afp
+      else error "invalid filepath"
+    Nothing -> error "invalid encoding"
+
+-- | QuasiQuote an 'AbstractFilePath'. This accepts Unicode characters
+-- and encodes as UTF-8 on unix and UTF-16 on windows. Runs 'filepathIsValid'
+-- on the input.
+absFP :: QuasiQuoter
+absFP = qq mkAbstractFilePath
+
