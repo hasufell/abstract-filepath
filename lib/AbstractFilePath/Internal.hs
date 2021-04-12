@@ -2,6 +2,7 @@
 
 module AbstractFilePath.Internal where
 
+import AbstractFilePath.Internal.Types
 import AbstractFilePath.Internal.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf16LE'', decodeUtf8, decodeUtf8With, decodeUtf8')
 import AbstractFilePath.Internal.Encode (encodeUtf16LE, encodeUtf8)
 
@@ -26,27 +27,6 @@ import qualified Data.Text.Encoding as E
 import qualified GHC.Foreign as GHC
 import qualified Language.Haskell.TH.Syntax as TH
 
-
--- Using unpinned bytearrays to avoid Heap fragmentation and
--- which are reasonably cheap to pass to FFI calls
--- wrapped with typeclass-friendly types allowing to avoid CPP
--- 
--- Note that, while unpinned bytearrays incur a memcpy on each
--- FFI call, this overhead is generally much preferable to
--- the memory fragmentation of pinned bytearrays
-
--- | Filepaths are UTF16 data on windows as passed to syscalls.
-data WindowsFilePath = WFP BS.ShortByteString 
-  deriving (Eq, Ord, Show)
--- | Filepaths are @char[]@ data on unix as passed to syscalls.
-data PosixFilePath   = PFP BS.ShortByteString
-  deriving (Eq, Ord, Show)
-
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-type PlatformFilePath = WindowsFilePath
-#else
-type PlatformFilePath = PosixFilePath
-#endif
 
 -- | Total Unicode-friendly encoding.
 --
@@ -187,63 +167,6 @@ filepathIsValid (AbstractFilePath (PFP ba))
   && (not . BS.null $ ba)
 #endif
 
-
--- | Type representing filenames\/pathnames.
---
--- Internally this is either 'WindowsFilePath' or 'PosixFilePath',
--- depending on the platform. Both use unpinned
--- 'ShortByteString' for efficiency and correctness.
---
--- The constructor is only exported via "AbstractFilePath.Internal", since
--- dealing with the internals isn't generally recommended, but supported
--- in case you need to write platform specific code, such as the implementation
--- of 'fromAbstractFilePath'.
-newtype AbstractFilePath = AbstractFilePath PlatformFilePath
-  deriving Show
-
--- | Byte equality of the internal representation.
-instance Eq AbstractFilePath where
-  (AbstractFilePath a) == (AbstractFilePath b) = a == b
-
--- | Byte ordering of the internal representation.
-instance Ord AbstractFilePath where
-  compare (AbstractFilePath a) (AbstractFilePath b) = compare a b
-
--- | Encodes as UTF16 on windows and UTF8 on unix.
-instance IsString AbstractFilePath where 
-    fromString = toAbstractFilePath
-
--- | \"String-Concatenation\" for 'AbstractFilePath'. This is __not__ the same
--- as '(</>)'.
-instance Monoid AbstractFilePath where 
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-    mempty      = AbstractFilePath (WFP BS.empty)
-    mappend (AbstractFilePath (WFP a)) (AbstractFilePath (WFP b))
-      = AbstractFilePath (WFP (mappend a b))
-#else
-    mempty      = AbstractFilePath (PFP BS.empty)
-    mappend (AbstractFilePath (PFP a)) (AbstractFilePath (PFP b))
-      = AbstractFilePath (PFP (mappend a b))
-#endif
-#if MIN_VERSION_base(4,11,0)
-instance Semigroup AbstractFilePath where 
-    (<>) = mappend
-#endif
-
-
-instance Lift AbstractFilePath where
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-  lift (AbstractFilePath (WFP bs))
-    = [| AbstractFilePath (WFP (BS.pack $(lift $ BS.unpack bs))) :: AbstractFilePath |]
-#else
-  lift (AbstractFilePath (PFP bs))
-    = [| AbstractFilePath (PFP (BS.pack $(lift $ BS.unpack bs))) :: AbstractFilePath |]
-#endif
-#if MIN_VERSION_template_haskell(2,17,0)
-  liftTyped = TH.unsafeCodeCoerce . TH.lift
-#elif MIN_VERSION_template_haskell(2,16,0)
-  liftTyped = TH.unsafeTExpCoerce . TH.lift
-#endif
 
 qq :: (ByteString -> Q Exp) -> QuasiQuoter
 qq quoteExp' =

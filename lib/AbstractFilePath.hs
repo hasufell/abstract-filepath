@@ -80,4 +80,5 @@ module AbstractFilePath
   )
 where
 
-import AbstractFilePath.Internal ( AbstractFilePath, WindowsFilePath(..), PosixFilePath(..), toAbstractFilePath, toAbstractFilePath', fromByteString, fromAbstractFilePath, fromAbstractFilePath', filepathIsValid, absFP )
+import AbstractFilePath.Internal ( toAbstractFilePath, toAbstractFilePath', fromByteString, fromAbstractFilePath, fromAbstractFilePath', filepathIsValid, absFP )
+import AbstractFilePath.Internal.Types ( AbstractFilePath, WindowsFilePath(..), PosixFilePath(..) )
