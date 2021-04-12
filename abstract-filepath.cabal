@@ -27,6 +27,7 @@ library
                       AbstractFilePath.Internal.Encode
                       AbstractFilePath.Internal.Types
                       AbstractFilePath.Posix
+                      AbstractFilePath.Windows
                       AbstractFilePath.ShortByteString
 
     -- Modules included in this library but not exported.
