@@ -22,7 +22,7 @@ import qualified AbstractFilePath.ShortByteString as BS
 -- >>> import Data.Word8
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
--- >>> import AbstractFilePath.Internal (PosixFilePath (..))
+-- >>> import AbstractFilePath.Internal.Types (PosixFilePath (..))
 -- >>> import qualified Data.ByteString.Short as BS
 -- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
 -- >>> instance CoArbitrary ShortByteString where coarbitrary = coarbitrary . BS.unpack
@@ -37,16 +37,24 @@ import qualified AbstractFilePath.ShortByteString as BS
 -- Separator predicates
 
 
--- | Path separator character
+-- | Ideal path separator character
 pathSeparator :: Word8
 pathSeparator = _slash
 
+-- | Path separator character
+pathSeparators :: [Word8]
+pathSeparators = [_slash]
 
 -- | Check if a character is the path separator
 --
 -- prop> \n ->  (_chr n == '/') == isPathSeparator n
 isPathSeparator :: Word8 -> Bool
-isPathSeparator = (== pathSeparator)
+isPathSeparator = flip elem pathSeparators
+
+
+isPathSeparator' :: PosixFilePath -> Bool
+isPathSeparator' pfp@(PFP fp) =
+  BS.length fp == 1 && isPathSeparator (BS.head fp)
 
 
 -- | Search path separator
@@ -341,8 +349,8 @@ replaceBaseName path name = combineRaw dir (PFP name <.> ext)
 -- >>> takeDirectory "/path/to"
 -- PFP "/path"
 takeDirectory :: PosixFilePath -> PosixFilePath
-takeDirectory (PFP x) = case () of
-    () | x == BS.singleton pathSeparator -> PFP x
+takeDirectory pfp@(PFP x) = case () of
+    () | isPathSeparator' pfp -> PFP x
        | BS.null res && not (BS.null file) -> PFP file
        | otherwise -> PFP res
   where
@@ -386,7 +394,7 @@ splitPath (PFP bs) = fmap PFP $ splitter bs
   where
     splitter x
       | BS.null x = []
-      | otherwise = case BS.elemIndex pathSeparator x of
+      | otherwise = case BS.findIndex isPathSeparator x of
             Nothing -> [x]
             Just ix -> case BS.findIndex (not . isPathSeparator) $ BS.drop (ix+1) x of
                           Nothing -> [x]
@@ -409,6 +417,8 @@ joinPath = foldr (</>) (PFP mempty)
 -- [PFP "/",PFP "path",PFP "to",PFP "file.txt"]
 -- >>> splitDirectories "path/to/file.txt"
 -- [PFP "path",PFP "to",PFP "file.txt"]
+-- >>> splitDirectories "/"
+-- [PFP "/"]
 -- >>> splitDirectories ""
 -- []
 splitDirectories :: PosixFilePath -> [PosixFilePath]
@@ -418,7 +428,7 @@ splitDirectories (PFP x)
                                     in fmap PFP (root : splitter rest)
     | otherwise = fmap PFP $ splitter x
   where
-    splitter = filter (not . BS.null) . BS.split pathSeparator
+    splitter = filter (not . BS.null) . BS.splitWith isPathSeparator
 
 
 -- |Get all parents of a path.
@@ -431,7 +441,7 @@ splitDirectories (PFP x)
 -- []
 takeAllParents :: PosixFilePath -> [PosixFilePath]
 takeAllParents p
-  | np == PFP (BS.singleton pathSeparator) = []
+  | isPathSeparator' np = []
   | otherwise = takeDirectory np : takeAllParents (takeDirectory np)
   where
     np = normalise p
@@ -479,11 +489,11 @@ addTrailingPathSeparator x@(PFP bs) = if hasTrailingPathSeparator x
 -- >>> dropTrailingPathSeparator "//"
 -- PFP "/"
 dropTrailingPathSeparator :: PosixFilePath -> PosixFilePath
-dropTrailingPathSeparator (PFP x)
-  | x == BS.singleton pathSeparator = PFP x
-  | otherwise = if hasTrailingPathSeparator (PFP x)
+dropTrailingPathSeparator pfp@(PFP x)
+  | isPathSeparator' pfp = PFP x
+  | otherwise = if hasTrailingPathSeparator pfp
                   then dropTrailingPathSeparator $ PFP $ BS.init x
-                  else PFP x
+                  else pfp
 
 
 
@@ -538,7 +548,7 @@ normalise pfp@(PFP filepath) = PFP $
     f = joinPath . fmap PFP . dropDots . propSep . fmap (\(PFP fp) -> fp) . splitDirectories
     propSep :: [ShortByteString] -> [ShortByteString]
     propSep (x:xs)
-      | BS.all (== pathSeparator) x = BS.singleton pathSeparator : xs
+      | BS.all isPathSeparator x = BS.singleton pathSeparator : xs
       | otherwise                   = x : xs
     propSep [] = []
     dropDots :: [ShortByteString] -> [ShortByteString]
@@ -583,8 +593,8 @@ makeRelative root@(PFP root') path@(PFP path')
                     in if equalFilePath (PFP x1) (PFP y1) then f x2 y2 else path'
     g x = (BS.dropWhile isPathSeparator a, BS.dropWhile isPathSeparator b)
       where (a, b) = BS.break isPathSeparator $ BS.dropWhile isPathSeparator x
-    dropAbs x = snd $ BS.span (== _slash) x
-    takeAbs x = fst $ BS.span (== _slash) x
+    dropAbs x = snd $ BS.span isPathSeparator x
+    takeAbs x = fst $ BS.span isPathSeparator x
 
 
 -- |Equality of two filepaths. The filepaths are normalised
@@ -696,7 +706,7 @@ isSpecialDirectoryEntry (PFP filepath)
 -- False
 isFileName :: PosixFilePath -> Bool
 isFileName (PFP filepath) =
-  not (BS.singleton pathSeparator `BS.isInfixOf` filepath) &&
+  not (foldr (\a b -> BS.singleton a `BS.isInfixOf` filepath && b) True pathSeparators) &&
   not (BS.null filepath) &&
   not (_nul `BS.elem` filepath)
 
@@ -719,18 +729,23 @@ isFileName (PFP filepath) =
 -- False
 hasParentDir :: PosixFilePath -> Bool
 hasParentDir (PFP filepath) =
-    (pathSeparator `BS.cons` pathDoubleDot)
-     `BS.isSuffixOf` filepath
+    predicate (`BS.cons` pathDoubleDot)
+     BS.isSuffixOf
    ||
-    (BS.singleton pathSeparator
+    predicate (\sep -> BS.singleton sep
         `BS.append` pathDoubleDot
-        `BS.append` BS.singleton pathSeparator)
-     `BS.isInfixOf`  filepath
+        `BS.append` BS.singleton sep)
+     BS.isInfixOf
    ||
-    (pathDoubleDot `BS.append` BS.singleton pathSeparator)
-      `BS.isPrefixOf` filepath
+    predicate (\sep -> BS.snoc sep pathDoubleDot )
+      BS.isPrefixOf
   where
     pathDoubleDot = BS.pack [_period, _period]
+    predicate f p =
+      foldr (\a b -> f a
+              `p` filepath && b)
+            True
+            pathSeparators
 
 
 -- | Whether the file is a hidden file.
