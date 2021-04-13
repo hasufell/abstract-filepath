@@ -52,6 +52,7 @@ module AbstractFilePath.ShortByteString
   spanEnd,
   splitAt,
   split,
+  splitWith,
   stripSuffix,
 
   -- * Predicates
@@ -351,17 +352,30 @@ splitAt n xs
 --
 -- Note: copies the substrings
 split :: Word8 -> ShortByteString -> [ShortByteString]
-split w sbs
+split w = splitWith (== w)
+
+
+-- | /O(n)/ Splits a 'ShortByteString' into components delimited by
+-- separators, where the predicate returns True for a separator element.
+-- The resulting components do not contain the separators.  Two adjacent
+-- separators result in an empty component in the output.  eg.
+--
+-- > splitWith (==97) "aabbaca" == ["","","bb","c",""] -- fromEnum 'a' == 97
+-- > splitWith undefined ""     == []                  -- and not [""]
+--
+splitWith :: (Word8 -> Bool) -> ShortByteString -> [ShortByteString]
+splitWith p sbs
   | BS.null sbs = []
   | otherwise = go sbs
   where
     go sbs'
       | BS.null sbs' = [mempty]
       | otherwise =
-          case break (== w) sbs' of
+          case break p sbs' of
             (a, b)
               | BS.null b -> [a]
               | otherwise -> a : go (tail b)
+
 
 -- | /O(n)/ The 'stripSuffix' function takes two ShortByteStrings and returns 'Just'
 -- the remainder of the second iff the first is its suffix, and otherwise
