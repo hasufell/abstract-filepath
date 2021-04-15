@@ -106,68 +106,6 @@ fromByteString = pure . AbstractFilePath . PFP . BS.toShort
 #endif
 
 
--- | This is a fuzzy check whether a filepath is valid.
---
--- On /Unix/, this
--- checks only for the absence of NUL bytes according to the <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170 POSIX specification>.
---
--- On /Windows/, this does a best effort following the <https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions naming conventions>, which
--- is not exhaustive.
---
--- Further filestysem restrictions may apply. Use this function with caution,
--- preferably with user input. Don't run this on filepaths *returned* by a syscall.
-filepathIsValid :: AbstractFilePath
-                -> Bool
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-filepathIsValid (AbstractFilePath (WFP ba)) =
-  (and . fmap (not . flip elem notPermittedChars) . BS.unpack $ ba)
-  &&
-  (not $ elem ba notPermittedNames)
-  &&
-  (not $ BS.null ba)
-  where
-    notPermittedChars =
-      [ _nul
-      , _less
-      , _greater
-      , _colon
-      , _quotedbl
-      , _slash
-      , _bar
-      , _question
-      , _asterisk
-      ]
-    notPermittedNames = fromString <$>
-      [ "CON"
-      , "PRN"
-      , "AUX"
-      , "NUL"
-      , "COM1"
-      , "COM2"
-      , "COM3"
-      , "COM4"
-      , "COM5"
-      , "COM6"
-      , "COM7"
-      , "COM8"
-      , "COM9"
-      , "LPT1"
-      , "LPT2"
-      , "LPT3"
-      , "LPT4"
-      , "LPT5"
-      , "LPT6"
-      , "LPT7"
-      , "LPT8"
-      , "LPT9"
-      ]
-#else
-filepathIsValid (AbstractFilePath (PFP ba))
-  = (not $ elem _nul $ BS.unpack ba)
-  && (not . BS.null $ ba)
-#endif
-
-
 qq :: (ByteString -> Q Exp) -> QuasiQuoter
 qq quoteExp' =
   QuasiQuoter
@@ -188,7 +126,7 @@ mkAbstractFilePath :: ByteString -> Q Exp
 mkAbstractFilePath bs = 
   case fromByteString bs of
     Just afp ->
-      if filepathIsValid afp
+      if True -- isValid afp -- TODO
       then lift afp
       else error "invalid filepath"
     Nothing -> error "invalid encoding"

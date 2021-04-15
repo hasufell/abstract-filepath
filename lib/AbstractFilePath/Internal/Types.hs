@@ -1,10 +1,13 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module AbstractFilePath.Internal.Types where
 
 import {-# SOURCE #-} AbstractFilePath.Internal (toAbstractFilePath)
 
 import AbstractFilePath.Internal.Encode (encodeUtf16LE, encodeUtf8)
+import AbstractFilePath.Internal.Decode
+    ( decodeUtf16LE, decodeUtf8 )
 
 import Data.ByteString ( ByteString )
 import Data.Proxy ( Proxy (..) )
@@ -31,23 +34,38 @@ import qualified Language.Haskell.TH.Syntax as TH
 -- FFI call, this overhead is generally much preferable to
 -- the memory fragmentation of pinned bytearrays
 
--- | Filepaths are UTF16 data on windows as passed to syscalls.
-newtype WindowsFilePath = WFP BS.ShortByteString 
-  deriving (Eq, Ord, Show)
--- | Filepaths are @char[]@ data on unix as passed to syscalls.
-newtype PosixFilePath   = PFP BS.ShortByteString
-  deriving (Eq, Ord, Show)
+-- | Commonly used windows string as UTF16 bytes.
+newtype WindowsString = WFP { unWFP :: BS.ShortByteString }
+  deriving (Eq, Ord, Semigroup, Monoid)
+-- | Commonly used Posix string as uninterpreted @char[]@
+-- array.
+newtype PosixString   = PFP { unPFP :: BS.ShortByteString }
+  deriving (Eq, Ord, Semigroup, Monoid)
 
-instance IsString WindowsFilePath where 
+-- | Filepaths are UTF16 data on windows as passed to syscalls.
+type WindowsFilePath = WindowsString
+
+-- | Filepaths are @char[]@ data on unix as passed to syscalls.
+type PosixFilePath = PosixString
+
+instance Show WindowsString where
+  show (WFP bs) = ('\"': decodeUtf16LE bs) <> "\""
+
+instance Show PosixString where
+  show (PFP bs) = ('\"': decodeUtf8 bs) <> "\""
+
+instance IsString WindowsString where 
     fromString = WFP . encodeUtf16LE
 
-instance IsString PosixFilePath where 
+instance IsString PosixString where 
     fromString = PFP . encodeUtf8
 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 type PlatformFilePath = WindowsFilePath
+type PlatformString = WindowsString
 #else
 type PlatformFilePath = PosixFilePath
+type PlatformString = PosixString
 #endif
 
 

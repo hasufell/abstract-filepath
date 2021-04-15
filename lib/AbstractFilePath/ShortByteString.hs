@@ -38,6 +38,7 @@ module AbstractFilePath.ShortByteString
 
   -- ** Special folds
   all,
+  any,
   concat,
 
   -- * Substrings
@@ -46,6 +47,7 @@ module AbstractFilePath.ShortByteString
   take,
   drop,
   dropWhile,
+  dropWhileEnd,
   breakEnd,
   break,
   span,
@@ -84,7 +86,7 @@ module AbstractFilePath.ShortByteString
   )
 where
 
-import Prelude hiding (break, take, drop, splitAt, concat, tail, head, all, span, map, elem, dropWhile, init, last, null, length)
+import Prelude hiding (break, take, drop, splitAt, concat, tail, head, all, span, map, elem, dropWhile, init, last, null, length, any)
 
 import Data.ByteString.Short (ShortByteString, empty, pack, unpack, fromShort, toShort, null, length, index, packCString, packCStringLen, useAsCString, useAsCStringLen)
 import Data.ByteString.Short.Internal (ShortByteString(SBS), createFromPtr)
@@ -94,6 +96,8 @@ import qualified Data.Foldable as F
 import qualified Data.ByteString.Short as BS
 import qualified Data.ByteString.Short.Internal as BS
 
+
+import AbstractFilePath.Internal.ShortByteString
 
 
 import Data.ByteString.Internal (ByteString(..), accursedUnutterablePerformIO, c_strlen, memcmp)
@@ -249,6 +253,20 @@ all k sbs = go 0
     go !n | n >= l    = True
           | otherwise = k (w n) && go (n + 1)
 
+
+-- | /O(n)/ Applied to a predicate and a ByteString, 'any' determines if
+-- any element of the 'ByteString' satisfies the predicate.
+any :: (Word8 -> Bool) -> ShortByteString -> Bool
+any k sbs = go 0
+  where
+    l = BS.length sbs
+    ba = asBA sbs
+    w = indexWord8Array ba
+    go !n | n >= l    = False
+          | otherwise = k (w n) || go (n + 1)
+{-# INLINE [1] any #-}
+
+
 -- | /O(n)/ Concatenate a list of ShortByteStrings.
 concat :: [ShortByteString] -> ShortByteString
 concat = mconcat
@@ -283,6 +301,17 @@ drop = \n -> \sbs ->
 -- Note: copies the entire byte array
 dropWhile :: (Word8 -> Bool) -> ShortByteString -> ShortByteString
 dropWhile f ps = drop (findIndexOrLength (not . f) ps) ps
+
+-- | Similar to 'P.dropWhileEnd',
+-- drops the longest (possibly empty) suffix of elements
+-- satisfying the predicate and returns the remainder.
+--
+-- @'dropWhileEnd' p@ is equivalent to @'reverse' . 'dropWhile' p . 'reverse'@.
+--
+-- @since 0.10.12.0
+dropWhileEnd :: (Word8 -> Bool) -> ShortByteString -> ShortByteString
+dropWhileEnd f ps = take (findFromEndUntil (not . f) ps) ps
+{-# INLINE dropWhileEnd #-}
 
 -- | Returns the longest (possibly empty) suffix of elements which __do not__
 -- satisfy the predicate and the remainder of the string.
@@ -590,43 +619,6 @@ breakByte c p = case elemIndex c p of
     Nothing -> (p, mempty)
     Just n  -> (take n p, drop n p)
 {-# INLINE breakByte #-}
-
-
-data BA    = BA# ByteArray#
-data MBA s = MBA# (MutableByteArray# s)
-
-
-newPinnedByteArray :: Int -> ST s (MBA s)
-newPinnedByteArray (I# len#) =
-    ST $ \s -> case newPinnedByteArray# len# s of
-                 (# s, mba# #) -> (# s, MBA# mba# #)
-
-newByteArray :: Int -> ST s (MBA s)
-newByteArray (I# len#) =
-    ST $ \s -> case newByteArray# len# s of
-                 (# s, mba# #) -> (# s, MBA# mba# #)
-
-copyByteArray :: BA -> Int -> MBA s -> Int -> Int -> ST s ()
-copyByteArray (BA# src#) (I# src_off#) (MBA# dst#) (I# dst_off#) (I# len#) =
-    ST $ \s -> case copyByteArray# src# src_off# dst# dst_off# len# s of
-                 s -> (# s, () #)
-
-unsafeFreezeByteArray :: MBA s -> ST s BA
-unsafeFreezeByteArray (MBA# mba#) =
-    ST $ \s -> case unsafeFreezeByteArray# mba# s of
-                 (# s, ba# #) -> (# s, BA# ba# #)
-
-asBA :: ShortByteString -> BA
-asBA (SBS ba#) = BA# ba#
-
-create :: Int -> (forall s. MBA s -> ST s ()) -> ShortByteString
-create len fill =
-    runST $ do
-      mba <- newByteArray len
-      fill mba
-      BA# ba# <- unsafeFreezeByteArray mba
-      return (SBS ba#)
-{-# INLINE create #-}
 
 indexWord8Array :: BA -> Int -> Word8
 indexWord8Array (BA# ba#) (I# i#) = W8# (indexWord8Array# ba# i#)

@@ -1,11 +1,91 @@
 {-# LANGUAGE CPP #-}
 
-module AbstractFilePath.Posix where
+module AbstractFilePath.Posix
+  (
+  -- * Separator predicates
+    pathSeparator
+  , pathSeparators
+  , isPathSeparator
+  , searchPathSeparator
+  , isSearchPathSeparator
+  , extSeparator
+  , isExtSeparator
+
+  -- * $PATH methods
+  , splitSearchPath
+
+  -- * Extension functions
+  , takeExtension
+  , replaceExtension
+  , dropExtension
+  , addExtension
+  , hasExtension
+  , (<.>)
+  , splitExtensions
+  , dropExtensions
+  , takeExtensions
+  , splitExtension
+
+  -- * Filename\/directory functions
+  , splitFileName
+  , takeFileName
+  , replaceFileName
+  , dropFileName
+  , takeBaseName
+  , replaceBaseName
+  , takeDirectory
+  , replaceDirectory
+  , combine
+  , (</>)
+  , splitPath
+  , joinPath
+  , splitDirectories
+  , takeAllParents
+
+  -- * Drive functions
+  , splitDrive
+  , joinDrive
+  , takeDrive
+  , hasDrive
+  , dropDrive
+  , isDrive
+
+  -- * Trailing slash functions
+  , hasTrailingPathSeparator
+  , addTrailingPathSeparator
+  , dropTrailingPathSeparator
+
+  -- * File name manipulations
+  , normalise
+  , makeRelative
+  , equalFilePath
+  , isRelative
+  , isAbsolute
+  , isValid
+  , makeValid
+  , isFileName
+  , hasParentDir
+ 
+  -- * posix specific functions
+  , hiddenFile
+  , isSpecialDirectoryEntry
+  )
+where
 
 
-import AbstractFilePath.Internal.Types ( PosixFilePath(..) )
+import AbstractFilePath.Internal.Posix
+  ( pathSeparator
+  , pathSeparators
+  , isPathSeparator
+  , searchPathSeparator
+  , isSearchPathSeparator
+  , extSeparator
+  , isExtSeparator
+  )
+import AbstractFilePath.Internal.Types ( PosixString (..), PosixFilePath )
 
 import Control.Arrow (second)
+import Data.Bifunctor (bimap, first)
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust)
 import Data.Word8
@@ -14,6 +94,7 @@ import Data.ByteString.Short (ShortByteString)
 
 import qualified Data.ByteString.Short as BS
 import qualified AbstractFilePath.ShortByteString as BS
+import qualified AbstractFilePath.Internal.Posix as C
 
 
 -- $setup
@@ -33,55 +114,6 @@ import qualified AbstractFilePath.ShortByteString as BS
 
 
 
-------------------------
--- Separator predicates
-
-
--- | Ideal path separator character
-pathSeparator :: Word8
-pathSeparator = _slash
-
--- | Path separator character
-pathSeparators :: [Word8]
-pathSeparators = [_slash]
-
--- | Check if a character is the path separator
---
--- prop> \n ->  (_chr n == '/') == isPathSeparator n
-isPathSeparator :: Word8 -> Bool
-isPathSeparator = flip elem pathSeparators
-
-
-isPathSeparator' :: PosixFilePath -> Bool
-isPathSeparator' pfp@(PFP fp) =
-  BS.length fp == 1 && isPathSeparator (BS.head fp)
-
-
--- | Search path separator
-searchPathSeparator :: Word8
-searchPathSeparator = _colon
-
-
--- | Check if a character is the search path separator
---
--- prop> \n -> (_chr n == ':') == isSearchPathSeparator n
-isSearchPathSeparator :: Word8 -> Bool
-isSearchPathSeparator = (== searchPathSeparator)
-
-
--- | File extension separator. This isn't defined by the POSIX standard
--- and may not work as expected on non-ASCII compatible encoding.
-extSeparator :: Word8
-extSeparator = _period
-
-
--- | Check if a character is the file extension separator
---
--- prop> \n -> (_chr n == '.') == isExtSeparator n
-isExtSeparator :: Word8 -> Bool
-isExtSeparator = (== extSeparator)
-
-
 
 ------------------------
 -- $PATH methods
@@ -94,21 +126,13 @@ isExtSeparator = (== extSeparator)
 -- <http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html>
 --
 -- >>> splitSearchPath "File1:File2:File3"
--- [PFP "File1",PFP "File2",PFP "File3"]
+-- ["File1","File2","File3"]
 -- >>> splitSearchPath "File1::File2:File3"
--- [PFP "File1",PFP ".",PFP "File2",PFP "File3"]
+-- ["File1",".","File2","File3"]
 -- >>> splitSearchPath ""
--- [PFP "."]
+-- ["."]
 splitSearchPath :: ShortByteString -> [PosixFilePath]
-splitSearchPath = fmap PFP . f
-  where
-    f bs = let (pre, post) = BS.break isSearchPathSeparator bs
-           in if BS.null post
-                 then g pre
-                 else g pre ++ f (BS.tail post)
-    g x
-      | BS.null x = [BS.singleton _period]
-      | otherwise = [x]
+splitSearchPath = fmap PFP . C.splitSearchPath
 
 
 
@@ -118,25 +142,20 @@ splitSearchPath = fmap PFP . f
 -- | Split a 'PosixFilePath' into a path+filename and extension
 --
 -- >>> splitExtension "file.exe"
--- (PFP "file",".exe")
+-- ("file",".exe")
 -- >>> splitExtension "file"
--- (PFP "file","")
+-- ("file","")
 -- >>> splitExtension "/path/file.tar.gz"
--- (PFP "/path/file.tar",".gz")
+-- ("/path/file.tar",".gz")
 -- >>> splitExtension ".exe"
--- (PFP ".exe","")
+-- (".exe","")
 --
 -- prop> \path -> PFP (uncurry (\(PFP a) b -> BS.append a b) (splitExtension path)) == path
 splitExtension :: PosixFilePath -> (PosixFilePath, ShortByteString)
-splitExtension x = if BS.null basename || (BS.singleton extSeparator == basename)
-    then (x, BS.empty)
-    else (PFP $ BS.append path (BS.init basename), BS.cons extSeparator fileExt)
-  where
-    (PFP path, PFP file) = splitFileNameRaw x
-    (basename, fileExt) = BS.breakEnd isExtSeparator file
+splitExtension (PFP x) = first PFP $ C.splitExtension x
 
 
--- | Get the final extension from a 'PosixFilePath'
+-- | Get the file extension from a 'PosixFilePath'
 --
 -- >>> takeExtension "file.exe"
 -- ".exe"
@@ -145,43 +164,40 @@ splitExtension x = if BS.null basename || (BS.singleton extSeparator == basename
 -- >>> takeExtension "/path/file.tar.gz"
 -- ".gz"
 takeExtension :: PosixFilePath -> ShortByteString
-takeExtension = snd . splitExtension
+takeExtension (PFP x) = C.takeExtension x
 
 
 -- | Change a file's extension
 --
 -- prop> \path -> let ext = takeExtension path in replaceExtension path ext == path
 replaceExtension :: PosixFilePath -> ShortByteString -> PosixFilePath
-replaceExtension path ext = dropExtension path <.> ext
+replaceExtension (PFP path) ext = PFP (C.replaceExtension path ext)
 
 
 -- | Drop the final extension from a 'PosixFilePath'
 --
 -- >>> dropExtension ".exe"
--- PFP ".exe"
+-- ".exe"
 -- >>> dropExtension "file.exe"
--- PFP "file"
+-- "file"
 -- >>> dropExtension "file"
--- PFP "file"
+-- "file"
 -- >>> dropExtension "/path/file.tar.gz"
--- PFP "/path/file.tar"
+-- "/path/file.tar"
 dropExtension :: PosixFilePath -> PosixFilePath
-dropExtension = fst . splitExtension
+dropExtension (PFP x) = PFP $ C.dropExtension x
 
 
 -- | Add an extension to a 'PosixFilePath'
 --
 -- >>> addExtension "file" ".exe"
--- PFP "file.exe"
+-- "file.exe"
 -- >>> addExtension "file.tar" ".gz"
--- PFP "file.tar.gz"
+-- "file.tar.gz"
 -- >>> addExtension "/path/" ".ext"
--- PFP "/path/.ext"
+-- "/path/.ext"
 addExtension :: PosixFilePath -> ShortByteString -> PosixFilePath
-addExtension file@(PFP bs) ext
-    | BS.null ext = file
-    | isExtSeparator (BS.head ext) = PFP $ BS.append bs ext
-    | otherwise = PFP $ BS.intercalate (BS.singleton extSeparator) [bs, ext]
+addExtension (PFP bs) ext = PFP $ C.addExtension bs ext
 
 
 -- | Check if a 'PosixFilePath' has an extension
@@ -193,7 +209,7 @@ addExtension file@(PFP bs) ext
 -- >>> hasExtension "/path.part1/"
 -- False
 hasExtension :: PosixFilePath -> Bool
-hasExtension = isJust . BS.elemIndex extSeparator . (\(PFP fn) -> fn) . takeFileName
+hasExtension (PFP x) = C.hasExtension x
 
 
 -- | Operator version of 'addExtension'
@@ -204,24 +220,19 @@ hasExtension = isJust . BS.elemIndex extSeparator . (\(PFP fn) -> fn) . takeFile
 -- | Split a 'PosixFilePath' on the first extension.
 --
 -- >>> splitExtensions "/path/file.tar.gz"
--- (PFP "/path/file",".tar.gz")
+-- ("/path/file",".tar.gz")
 --
 -- prop> \path -> uncurry addExtension (splitExtensions path) == path
 splitExtensions :: PosixFilePath -> (PosixFilePath, ShortByteString)
-splitExtensions x = if BS.null basename
-    then (PFP path, fileExt)
-    else (PFP $ BS.append path basename, fileExt)
-  where
-    (PFP path, PFP file) = splitFileNameRaw x
-    (basename, fileExt) = BS.break isExtSeparator file
+splitExtensions (PFP x) = first PFP $  C.splitExtensions x
 
 
 -- | Remove all extensions from a 'PosixFilePath'
 --
 -- >>> dropExtensions "/path/file.tar.gz"
--- PFP "/path/file"
+-- "/path/file"
 dropExtensions :: PosixFilePath -> PosixFilePath
-dropExtensions = fst . splitExtensions
+dropExtensions (PFP x) = PFP $ C.dropExtensions x
 
 
 -- | Take all extensions from a 'PosixFilePath'
@@ -229,7 +240,7 @@ dropExtensions = fst . splitExtensions
 -- >>> takeExtensions "/path/file.tar.gz"
 -- ".tar.gz"
 takeExtensions :: PosixFilePath -> ShortByteString
-takeExtensions = snd . splitExtensions
+takeExtensions (PFP x) = C.takeExtensions x
 
 
 -- | Drop the given extension from a FilePath, and the @\".\"@ preceding it.
@@ -240,13 +251,13 @@ takeExtensions = snd . splitExtensions
 -- especially if the filename might itself contain @.@ characters.
 --
 -- >>> stripExtension "hs.o" "foo.x.hs.o"
--- Just (PFP "foo.x")
+-- Just "foo.x"
 -- >>> stripExtension "hi.o" "foo.x.hs.o"
 -- Nothing
 -- >>> stripExtension ".c.d" "a.b.c.d"
--- Just (PFP "a.b")
+-- Just "a.b"
 -- >>> stripExtension ".c.d" "a.b..c.d"
--- Just (PFP "a.b.")
+-- Just "a.b."
 -- >>> stripExtension "baz"  "foo.bar"
 -- Nothing
 -- >>> stripExtension "bar"  "foobar"
@@ -256,13 +267,7 @@ takeExtensions = snd . splitExtensions
 -- prop> \path -> dropExtension path  == fromJust (stripExtension (takeExtension path) path)
 -- prop> \path -> dropExtensions path == fromJust (stripExtension (takeExtensions path) path)
 stripExtension :: ShortByteString -> PosixFilePath -> Maybe PosixFilePath
-stripExtension bs (PFP path)
-  | BS.null bs = Just (PFP path)
-  | otherwise  = fmap PFP $ BS.stripSuffix dotExt path
-  where
-    dotExt = if isExtSeparator $ BS.head bs
-                then bs
-                else extSeparator `BS.cons` bs
+stripExtension bs (PFP x) = fmap PFP $ C.stripExtension bs x
 
 
 ------------------------
@@ -272,111 +277,96 @@ stripExtension bs (PFP path)
 -- | Split a 'PosixFilePath' into (path,file).  'combine' is the inverse
 --
 -- >>> splitFileName "path/file.txt"
--- (PFP "path/",PFP "file.txt")
+-- ("path/","file.txt")
 -- >>> splitFileName "path/"
--- (PFP "path/",PFP "")
+-- ("path/","")
 -- >>> splitFileName "file.txt"
--- (PFP "./",PFP "file.txt")
+-- ("./","file.txt")
 --
 -- prop> \path -> uncurry combine (splitFileName path) == path || fst (splitFileName path) == "./"
 splitFileName :: PosixFilePath -> (PosixFilePath, PosixFilePath)
-splitFileName x = if BS.null path
-    then (PFP dotSlash, PFP file)
-    else (PFP path, PFP file)
-  where
-    (PFP path, PFP file) = splitFileNameRaw x
-    dotSlash = _period `BS.cons` (BS.singleton pathSeparator)
+splitFileName (PFP x) = bimap PFP PFP $ C.splitFileName x
 
 
 -- | Get the file name
 --
 -- >>> takeFileName "path/file.txt"
--- PFP "file.txt"
+-- "file.txt"
 -- >>> takeFileName "path/"
--- PFP ""
+-- ""
 takeFileName :: PosixFilePath -> PosixFilePath
-takeFileName = snd . splitFileName -- TODO: null filename not allowed
+takeFileName (PFP x) = PFP $ C.takeFileName x
 
 
 -- | Change the file name
 --
 -- prop> \path -> let (PFP fn) = takeFileName path in replaceFileName path fn == path
 replaceFileName :: PosixFilePath -> ShortByteString -> PosixFilePath
-replaceFileName x y = fst (splitFileNameRaw x) </> PFP y
+replaceFileName (PFP x) y = PFP $ C.replaceFileName x y
 
 
 -- | Drop the file name
 --
 -- >>> dropFileName "path/file.txt"
--- PFP "path/"
+-- "path/"
 -- >>> dropFileName "file.txt"
--- PFP "./"
+-- "./"
 dropFileName :: PosixFilePath -> PosixFilePath
-dropFileName = fst . splitFileName
+dropFileName (PFP x) = PFP $ C.dropFileName x
 
 
 -- | Get the file name, without a trailing extension
 --
 -- >>> takeBaseName "path/file.tar.gz"
--- PFP "file.tar"
+-- "file.tar"
 -- >>> takeBaseName ""
--- PFP ""
+-- ""
 takeBaseName :: PosixFilePath -> PosixFilePath
-takeBaseName = dropExtension . takeFileName
+takeBaseName (PFP x) = PFP $ C.takeBaseName x
 
 
 -- | Change the base name
 --
 -- >>> replaceBaseName "path/file.tar.gz" "bob"
--- PFP "path/bob.gz"
+-- "path/bob.gz"
 --
 -- prop> \path -> let (PFP baseName) = takeBaseName path in replaceBaseName path baseName == path
 replaceBaseName :: PosixFilePath -> ShortByteString -> PosixFilePath
-replaceBaseName path name = combineRaw dir (PFP name <.> ext)
-  where
-    (dir,file) = splitFileNameRaw path
-    ext = takeExtension file
+replaceBaseName (PFP path) name = PFP $ C.replaceBaseName path name
 
 
 -- | Get the directory, moving up one level if it's already a directory
 --
 -- >>> takeDirectory "path/file.txt"
--- PFP "path"
+-- "path"
 -- >>> takeDirectory "file"
--- PFP "."
+-- "."
 -- >>> takeDirectory "/path/to/"
--- PFP "/path/to"
+-- "/path/to"
 -- >>> takeDirectory "/path/to"
--- PFP "/path"
+-- "/path"
 takeDirectory :: PosixFilePath -> PosixFilePath
-takeDirectory pfp@(PFP x) = case () of
-    () | isPathSeparator' pfp -> PFP x
-       | BS.null res && not (BS.null file) -> PFP file
-       | otherwise -> PFP res
-  where
-    res = fst $ BS.spanEnd isPathSeparator file
-    (PFP file) = dropFileName (PFP x)
+takeDirectory (PFP x) = PFP $ C.takeDirectory x
 
 
 -- | Change the directory component of a 'PosixFilePath'
 --
 -- prop> \path -> replaceDirectory path (takeDirectory path) `equalFilePath` path || takeDirectory path == "."
 replaceDirectory :: PosixFilePath -> PosixFilePath -> PosixFilePath
-replaceDirectory file dir = combineRaw dir (takeFileName file)
+replaceDirectory (PFP file) (PFP dir) = PFP $ C.replaceDirectory file dir
 
 
 -- | Join two paths together. If the second path is absolute, then returns it, ignoring
 --  the first path.
 --
 -- >>> combine "/" "file"
--- PFP "/file"
+-- "/file"
 -- >>> combine "/path/to" "file"
--- PFP "/path/to/file"
+-- "/path/to/file"
 -- >>> combine "file" "/absolute/path"
--- PFP "/absolute/path"
+-- "/absolute/path"
 combine :: PosixFilePath -> PosixFilePath -> PosixFilePath
-combine (PFP a) (PFP b) | not (BS.null b) && isPathSeparator (BS.head b) = PFP b
-            | otherwise = combineRaw (PFP a) (PFP b)
+combine (PFP a) (PFP b) = PFP $ C.combine a b
 
 
 -- | Operator version of combine
@@ -386,19 +376,11 @@ combine (PFP a) (PFP b) | not (BS.null b) && isPathSeparator (BS.head b) = PFP b
 -- | Split a path into a list of components:
 --
 -- >>> splitPath "/path/to/file.txt"
--- [PFP "/",PFP "path/",PFP "to/",PFP "file.txt"]
+-- ["/","path/","to/","file.txt"]
 --
 -- prop> \path -> PFP (BS.concat (fmap (\(PFP fp) -> fp) (splitPath path))) == path
 splitPath :: PosixFilePath -> [PosixFilePath]
-splitPath (PFP bs) = fmap PFP $ splitter bs
-  where
-    splitter x
-      | BS.null x = []
-      | otherwise = case BS.findIndex isPathSeparator x of
-            Nothing -> [x]
-            Just ix -> case BS.findIndex (not . isPathSeparator) $ BS.drop (ix+1) x of
-                          Nothing -> [x]
-                          Just runlen -> uncurry (:) . second splitter $ BS.splitAt (ix+1+runlen) x
+splitPath (PFP bs) = fmap PFP $ C.splitPath bs
 
 
 -- | Join a split path back together
@@ -406,7 +388,7 @@ splitPath (PFP bs) = fmap PFP $ splitter bs
 -- prop> \path -> joinPath (splitPath path) == path
 --
 -- >>> joinPath ["path","to","file.txt"]
--- PFP "path/to/file.txt"
+-- "path/to/file.txt"
 joinPath :: [PosixFilePath] -> PosixFilePath
 joinPath = foldr (</>) (PFP mempty)
 
@@ -414,37 +396,90 @@ joinPath = foldr (</>) (PFP mempty)
 -- | Like 'splitPath', but without trailing slashes
 --
 -- >>> splitDirectories "/path/to/file.txt"
--- [PFP "/",PFP "path",PFP "to",PFP "file.txt"]
+-- ["/","path","to","file.txt"]
 -- >>> splitDirectories "path/to/file.txt"
--- [PFP "path",PFP "to",PFP "file.txt"]
+-- ["path","to","file.txt"]
 -- >>> splitDirectories "/"
--- [PFP "/"]
+-- ["/"]
 -- >>> splitDirectories ""
 -- []
 splitDirectories :: PosixFilePath -> [PosixFilePath]
-splitDirectories (PFP x)
-    | BS.null x = []
-    | isPathSeparator (BS.head x) = let (root,rest) = BS.splitAt 1 x
-                                    in fmap PFP (root : splitter rest)
-    | otherwise = fmap PFP $ splitter x
-  where
-    splitter = filter (not . BS.null) . BS.splitWith isPathSeparator
+splitDirectories (PFP x) = fmap PFP $ C.splitDirectories x
 
 
 -- |Get all parents of a path.
 --
 -- >>> takeAllParents "/abs/def/dod"
--- [PFP "/abs/def",PFP "/abs",PFP "/"]
+-- ["/abs/def","/abs","/"]
 -- >>> takeAllParents "/foo"
--- [PFP "/"]
+-- ["/"]
 -- >>> takeAllParents "/"
 -- []
 takeAllParents :: PosixFilePath -> [PosixFilePath]
-takeAllParents p
-  | isPathSeparator' np = []
-  | otherwise = takeDirectory np : takeAllParents (takeDirectory np)
-  where
-    np = normalise p
+takeAllParents (PFP p) = fmap PFP $ C.takeAllParents p
+
+
+------------------------
+-- Drive functions
+
+-- | Split a path into a drive and a path.
+--   On Posix, \/ is a Drive.
+--
+-- >>> splitDrive "/test"
+-- ("/","test")
+-- >>> splitDrive "//test"
+-- ("//","test")
+-- >>> splitDrive "test/file"
+-- ("","test/file")
+-- >>> splitDrive "file"
+-- ("","file")
+--
+-- prop> \x -> uncurry (<>) (splitDrive x) == x
+splitDrive :: PosixFilePath -> (PosixFilePath, PosixFilePath)
+splitDrive (PFP p) = bimap PFP PFP $ C.splitDrive p
+
+
+-- | Join a drive and the rest of the path.
+--
+-- prop> \x -> uncurry joinDrive (splitDrive x) == x
+joinDrive :: PosixFilePath -> PosixFilePath -> PosixFilePath
+joinDrive (PFP a) (PFP b) = PFP $ C.joinDrive a b
+
+
+-- | Get the drive from a filepath.
+--
+-- prop> \x -> takeDrive x == fst (splitDrive x)
+takeDrive :: PosixFilePath -> PosixFilePath
+takeDrive (PFP x) = PFP $ C.takeDrive x
+
+
+-- | Does a path have a drive.
+--
+-- >>> hasDrive "/foo"
+-- True
+-- >>> hasDrive "foo"
+-- False
+--
+-- prop> \x -> not (hasDrive x) == BS.null ((\(PFP x) -> x) $ takeDrive x)
+hasDrive :: PosixFilePath -> Bool
+hasDrive (PFP x) = C.hasDrive x
+
+
+-- | Delete the drive, if it exists.
+--
+-- prop> \x -> dropDrive x == snd (splitDrive x)
+dropDrive :: PosixFilePath -> PosixFilePath
+dropDrive (PFP x) = PFP $ C.dropDrive x
+
+
+-- | Is an element a drive
+--
+-- >>> isDrive "/"
+-- True
+-- >>> isDrive "/foo"
+-- False
+isDrive :: PosixFilePath -> Bool
+isDrive (PFP x) = C.isDrive x
 
 
 ------------------------
@@ -459,41 +494,33 @@ takeAllParents p
 -- >>> hasTrailingPathSeparator "/path"
 -- False
 hasTrailingPathSeparator :: PosixFilePath -> Bool
-hasTrailingPathSeparator (PFP x)
-  | BS.null x = False
-  | otherwise = isPathSeparator $ BS.last x
+hasTrailingPathSeparator (PFP x) = C.hasTrailingPathSeparator x
 
 
 -- | Add a trailing path separator.
 --
 -- >>> addTrailingPathSeparator "/path"
--- PFP "/path/"
+-- "/path/"
 -- >>> addTrailingPathSeparator "/path/"
--- PFP "/path/"
+-- "/path/"
 -- >>> addTrailingPathSeparator "/"
--- PFP "/"
+-- "/"
 addTrailingPathSeparator :: PosixFilePath -> PosixFilePath
-addTrailingPathSeparator x@(PFP bs) = if hasTrailingPathSeparator x
-    then x
-    else PFP (BS.snoc pathSeparator bs)
+addTrailingPathSeparator (PFP bs) = PFP $ C.addTrailingPathSeparator bs
 
 
 -- | Remove a trailing path separator
 --
 -- >>> dropTrailingPathSeparator "/path/"
--- PFP "/path"
+-- "/path"
 -- >>> dropTrailingPathSeparator "/path////"
--- PFP "/path"
+-- "/path"
 -- >>> dropTrailingPathSeparator "/"
--- PFP "/"
+-- "/"
 -- >>> dropTrailingPathSeparator "//"
--- PFP "/"
+-- "/"
 dropTrailingPathSeparator :: PosixFilePath -> PosixFilePath
-dropTrailingPathSeparator pfp@(PFP x)
-  | isPathSeparator' pfp = PFP x
-  | otherwise = if hasTrailingPathSeparator pfp
-                  then dropTrailingPathSeparator $ PFP $ BS.init x
-                  else pfp
+dropTrailingPathSeparator (PFP x) = PFP $ C.dropTrailingPathSeparator x
 
 
 
@@ -504,56 +531,33 @@ dropTrailingPathSeparator pfp@(PFP x)
 -- |Normalise a file.
 --
 -- >>> normalise "/file/\\test////"
--- PFP "/file/\\test/"
+-- "/file/\test/"
 -- >>> normalise "/file/./test"
--- PFP "/file/test"
+-- "/file/test"
 -- >>> normalise "/test/file/../bob/fred/"
--- PFP "/test/file/../bob/fred/"
+-- "/test/file/../bob/fred/"
 -- >>> normalise "../bob/fred/"
--- PFP "../bob/fred/"
+-- "../bob/fred/"
 -- >>> normalise "./bob/fred/"
--- PFP "bob/fred/"
+-- "bob/fred/"
 -- >>> normalise "./bob////.fred/./...///./..///#."
--- PFP "bob/.fred/.../../#."
+-- "bob/.fred/.../../#."
 -- >>> normalise "."
--- PFP "."
+-- "."
 -- >>> normalise "./"
--- PFP "./"
+-- "./"
 -- >>> normalise "./."
--- PFP "./"
+-- "./"
 -- >>> normalise "/./"
--- PFP "/"
+-- "/"
 -- >>> normalise "/"
--- PFP "/"
+-- "/"
 -- >>> normalise "bob/fred/."
--- PFP "bob/fred/"
+-- "bob/fred/"
 -- >>> normalise "//home"
--- PFP "/home"
+-- "/home"
 normalise :: PosixFilePath -> PosixFilePath
-normalise pfp@(PFP filepath) = PFP $
-  result `BS.append`
-  (if addPathSeparator
-       then BS.singleton pathSeparator
-       else BS.empty)
-  where
-    result = let (PFP n) = f pfp
-             in if BS.null n
-                then BS.singleton _period
-                else n
-    addPathSeparator = isDirPath pfp &&
-      not (hasTrailingPathSeparator $ PFP result)
-    isDirPath (PFP xs) = hasTrailingPathSeparator (PFP xs)
-        || not (BS.null xs) && BS.last xs == _period
-           && hasTrailingPathSeparator (PFP (BS.init xs))
-    f = joinPath . fmap PFP . dropDots . propSep . fmap (\(PFP fp) -> fp) . splitDirectories
-    propSep :: [ShortByteString] -> [ShortByteString]
-    propSep (x:xs)
-      | BS.all isPathSeparator x = BS.singleton pathSeparator : xs
-      | otherwise                   = x : xs
-    propSep [] = []
-    dropDots :: [ShortByteString] -> [ShortByteString]
-    dropDots = filter (BS.singleton _period /=)
-
+normalise (PFP filepath) = PFP $ C.normalise filepath
 
 
 -- | Contract a filename, based on a relative path. Note that the resulting
@@ -563,38 +567,25 @@ normalise pfp@(PFP filepath) = PFP $
 -- <http://neilmitchell.blogspot.co.uk/2015/10/filepaths-are-subtle-symlinks-are-hard.html this blog post>.
 --
 -- >>> makeRelative "/directory" "/directory/file.ext"
--- PFP "file.ext"
+-- "file.ext"
 -- >>> makeRelative "/Home" "/home/bob"
--- PFP "/home/bob"
+-- "/home/bob"
 -- >>> makeRelative "/home/" "/home/bob/foo/bar"
--- PFP "bob/foo/bar"
+-- "bob/foo/bar"
 -- >>> makeRelative "/fred" "bob"
--- PFP "bob"
+-- "bob"
 -- >>> makeRelative "/file/test" "/file/test/fred"
--- PFP "fred"
+-- "fred"
 -- >>> makeRelative "/file/test" "/file/test/fred/"
--- PFP "fred/"
+-- "fred/"
 -- >>> makeRelative "some/path" "some/path/a/b/c"
--- PFP "a/b/c"
+-- "a/b/c"
 --
 -- prop> \p -> makeRelative p p == "."
 -- prop> \p -> makeRelative (takeDirectory p) p `equalFilePath` takeFileName p
 -- prop \x y -> equalFilePath x y || (isRelative x && makeRelative y x == x) || equalFilePath (y </> makeRelative y x) x
 makeRelative :: PosixFilePath -> PosixFilePath -> PosixFilePath
-makeRelative root@(PFP root') path@(PFP path')
-  | equalFilePath root path = PFP $ BS.singleton _period
-  | takeAbs root' /= takeAbs path' = path
-  | otherwise = PFP $ f (dropAbs root') (dropAbs path')
-  where
-    f x y
-      | BS.null x = BS.dropWhile isPathSeparator y
-      | otherwise = let (x1,x2) = g x
-                        (y1,y2) = g y
-                    in if equalFilePath (PFP x1) (PFP y1) then f x2 y2 else path'
-    g x = (BS.dropWhile isPathSeparator a, BS.dropWhile isPathSeparator b)
-      where (a, b) = BS.break isPathSeparator $ BS.dropWhile isPathSeparator x
-    dropAbs x = snd $ BS.span isPathSeparator x
-    takeAbs x = fst $ BS.span isPathSeparator x
+makeRelative (PFP root) (PFP path) = PFP $ C.makeRelative root path
 
 
 -- |Equality of two filepaths. The filepaths are normalised
@@ -617,16 +608,14 @@ makeRelative root@(PFP root') path@(PFP path')
 --
 -- prop> \p -> equalFilePath p p
 equalFilePath :: PosixFilePath -> PosixFilePath -> Bool
-equalFilePath p1 p2 = f p1 == f p2
-  where
-    f x = dropTrailingPathSeparator $ normalise x
+equalFilePath (PFP p1) (PFP p2) = C.equalFilePath p1 p2
 
 
 -- | Check if a path is relative
 --
 -- prop> \path -> isRelative path /= isAbsolute path
 isRelative :: PosixFilePath -> Bool
-isRelative = not . isAbsolute
+isRelative (PFP x) = C.isRelative x
 
 
 -- | Check if a path is absolute
@@ -638,9 +627,7 @@ isRelative = not . isAbsolute
 -- >>> isAbsolute ""
 -- False
 isAbsolute :: PosixFilePath -> Bool
-isAbsolute (PFP x)
-    | BS.length x > 0 = isPathSeparator (BS.head x)
-    | otherwise = False
+isAbsolute (PFP x) = C.isAbsolute x
 
 
 -- | Is a FilePath valid, i.e. could you create a file like it?
@@ -652,29 +639,26 @@ isAbsolute (PFP x)
 -- >>> isValid "/random_ path:*"
 -- True
 isValid :: PosixFilePath -> Bool
-isValid (PFP filepath)
-  | BS.null filepath        = False
-  | _nul `BS.elem` filepath = False
-  | otherwise               = True
+isValid (PFP filepath) = C.isValid filepath
 
 
 -- | Take a FilePath and make it valid; does not change already valid FilePaths.
 --
 -- >>> makeValid ""
--- PFP "_"
+-- "_"
 -- >>> makeValid "file\0name"
--- PFP "file_name"
+-- "file_name"
 --
 -- prop> \p -> if isValid p then makeValid p == p else makeValid p /= p
 -- prop> \p -> isValid (makeValid p)
 makeValid :: PosixFilePath -> PosixFilePath
-makeValid (PFP path)
-  | BS.null path = PFP $ BS.singleton _underscore
-  | otherwise    = PFP $ BS.map (\x -> if x == _nul then _underscore else x) path
+makeValid (PFP path) = PFP $ C.makeValid path
 
 
 -- | Whether the filename is a special directory entry
 -- (. and ..). Does not normalise filepaths.
+--
+-- This is only defined for POSIX.
 --
 -- >>> isSpecialDirectoryEntry "."
 -- True
@@ -687,7 +671,6 @@ isSpecialDirectoryEntry (PFP filepath)
   | BS.pack [_period, _period] == filepath = True
   | BS.pack [_period] == filepath          = True
   | otherwise                              = False
-
 
 -- | Is the given path a valid filename? This includes
 -- "." and "..".
@@ -705,10 +688,7 @@ isSpecialDirectoryEntry (PFP filepath)
 -- >>> isFileName "/random_ path:*"
 -- False
 isFileName :: PosixFilePath -> Bool
-isFileName (PFP filepath) =
-  not (foldr (\a b -> BS.singleton a `BS.isInfixOf` filepath && b) True pathSeparators) &&
-  not (BS.null filepath) &&
-  not (_nul `BS.elem` filepath)
+isFileName (PFP filepath) = C.isFileName filepath
 
 
 -- | Check if the filepath has any parent directories in it.
@@ -728,27 +708,12 @@ isFileName (PFP filepath) =
 -- >>> hasParentDir ".."
 -- False
 hasParentDir :: PosixFilePath -> Bool
-hasParentDir (PFP filepath) =
-    predicate (`BS.cons` pathDoubleDot)
-     BS.isSuffixOf
-   ||
-    predicate (\sep -> BS.singleton sep
-        `BS.append` pathDoubleDot
-        `BS.append` BS.singleton sep)
-     BS.isInfixOf
-   ||
-    predicate (\sep -> BS.snoc sep pathDoubleDot )
-      BS.isPrefixOf
-  where
-    pathDoubleDot = BS.pack [_period, _period]
-    predicate f p =
-      foldr (\a b -> f a
-              `p` filepath && b)
-            True
-            pathSeparators
+hasParentDir (PFP filepath) = C.hasParentDir filepath
 
 
 -- | Whether the file is a hidden file.
+--
+-- This is only defined on POSIX.
 --
 -- >>> hiddenFile ".foo"
 -- True
@@ -767,27 +732,11 @@ hasParentDir (PFP filepath) =
 -- >>> hiddenFile ""
 -- False
 hiddenFile :: PosixFilePath -> Bool
-hiddenFile fp
+hiddenFile (PFP fp)
   | fn == BS.pack [_period, _period] = False
   | fn == BS.pack [_period]          = False
-  | otherwise                        = BS.pack [extSeparator]
+  | otherwise                        = BS.pack [C.extSeparator]
                                          `BS.isPrefixOf` fn
   where
-    (PFP fn) = takeFileName fp
+    fn = C.takeFileName fp
 
-
-
-------------------------
--- internal stuff
-
--- Just split the input FileName without adding/normalizing or changing
--- anything.
-splitFileNameRaw :: PosixFilePath -> (PosixFilePath, PosixFilePath)
-splitFileNameRaw (PFP fp) = (\(x, y) -> (PFP x, PFP y)) $ BS.breakEnd isPathSeparator fp
-
--- | Combine two paths, assuming rhs is NOT absolute.
-combineRaw :: PosixFilePath -> PosixFilePath -> PosixFilePath
-combineRaw (PFP a) (PFP b) | BS.null a = PFP b
-                           | BS.null b = PFP a
-                           | isPathSeparator (BS.last a) = PFP $ BS.append a b
-                           | otherwise = PFP $ BS.intercalate (BS.singleton pathSeparator) [a, b]

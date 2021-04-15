@@ -18,7 +18,8 @@ maintainer:         hasufell@posteo.de
 -- A copyright notice.
 -- copyright:
 category:           System
-extra-source-files: CHANGELOG.md
+extra-doc-files:    CHANGELOG.md
+extra-source-files: lib/AbstractFilePath/Internal/Common.hs
 
 library
     exposed-modules:  AbstractFilePath
@@ -27,11 +28,14 @@ library
                       AbstractFilePath.Internal.Encode
                       AbstractFilePath.Internal.Types
                       AbstractFilePath.Posix
-                      AbstractFilePath.Windows
                       AbstractFilePath.ShortByteString
+                      AbstractFilePath.ShortByteString.Word16
+                      AbstractFilePath.Windows
+                      AbstractFilePath.Word16
 
-    -- Modules included in this library but not exported.
-    -- other-modules:
+    other-modules:    AbstractFilePath.Internal.Posix
+                      AbstractFilePath.Internal.Windows
+                      AbstractFilePath.Internal.ShortByteString
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
