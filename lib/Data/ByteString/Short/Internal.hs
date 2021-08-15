@@ -1,17 +1,20 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE UnboxedTuples #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE UnboxedTuples #-}
 
-module AbstractFilePath.Internal.ShortByteString where
+module Data.ByteString.Short.Internal where
 
-import Data.ByteString.Short (ShortByteString)
-import Data.ByteString.Short.Internal (ShortByteString(SBS))
+import "bytestring" Data.ByteString.Short
+    ( ShortByteString )
+import "bytestring" Data.ByteString.Short.Internal
+    ( ShortByteString (SBS) )
 import GHC.Exts
-import GHC.ST         (ST(ST), runST)
+import GHC.ST
+    ( ST (ST), runST )
 
 
 create :: Int -> (forall s. MBA s -> ST s ()) -> ShortByteString

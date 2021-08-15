@@ -1,13 +1,19 @@
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RankNTypes #-}
 
-module AbstractFilePath.Internal.Encode (encodeUtf8, encodeUtf16LE) where
+module Data.ByteString.Short.Encode (encodeUtf8, encodeUtf16LE) where
 
-import Data.Bits ((.&.), shiftR)
-import Data.ByteString.Short (ShortByteString)
-import Data.Char (ord)
-import Data.Word ( Word8 )
+import Data.Bits
+    ( shiftR, (.&.) )
+import "bytestring" Data.ByteString.Short
+    ( ShortByteString )
+import Data.Char
+    ( ord )
+import Data.Word
+    ( Word8 )
 
-import qualified Data.ByteString.Short as BS (pack)
+import qualified Data.ByteString.Short as BS
+    ( pack )
 
 
 encodeUtf8 :: String -> ShortByteString

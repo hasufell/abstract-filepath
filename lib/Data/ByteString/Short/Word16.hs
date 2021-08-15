@@ -1,13 +1,14 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE UnboxedTuples #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE ViewPatterns #-}
 
-module AbstractFilePath.ShortByteString.Word16 (
+module Data.ByteString.Short.Word16 (
   -- * Introducing and eliminating 'ShortByteString's
   empty,
   singleton,
@@ -68,17 +69,50 @@ module AbstractFilePath.ShortByteString.Word16 (
   findIndex,
 ) where
 
-import Prelude hiding (break, take, drop, splitAt, concat, tail, head, all, span, map, elem, dropWhile, init, last, null, length, any, length)
+import Prelude hiding
+    ( all
+    , any
+    , break
+    , concat
+    , drop
+    , dropWhile
+    , elem
+    , head
+    , init
+    , last
+    , length
+    , map
+    , null
+    , span
+    , splitAt
+    , tail
+    , take
+    )
 
-import Data.ByteString.Short (ShortByteString, empty, fromShort, toShort, null, index, packCString, packCStringLen, useAsCString, useAsCStringLen)
-import AbstractFilePath.Internal.ShortByteString
-import AbstractFilePath.ShortByteString (append, isInfixOf, isSuffixOf, isPrefixOf, intercalate, stripSuffix)
-import AbstractFilePath.Word16
-import Data.ByteString.Short.Internal (ShortByteString(SBS), createFromPtr)
+import Data.ByteString.Short
+    ( append, intercalate, isInfixOf, isPrefixOf, isSuffixOf, stripSuffix )
+import Data.ByteString.Short.Internal
+import Data.Word16
+
+import "bytestring" Data.ByteString.Short
+    ( ShortByteString
+    , empty
+    , fromShort
+    , index
+    , null
+    , packCString
+    , packCStringLen
+    , toShort
+    , useAsCString
+    , useAsCStringLen
+    )
+import "bytestring" Data.ByteString.Short.Internal
+    ( ShortByteString (SBS), createFromPtr )
 import qualified Data.Foldable as F
-import GHC.Word
-import GHC.ST         (ST(ST), runST)
 import GHC.Exts
+import GHC.ST
+    ( ST (ST), runST )
+import GHC.Word
 
 import qualified Data.ByteString.Short as BS
 import qualified Data.ByteString.Short.Internal as BS

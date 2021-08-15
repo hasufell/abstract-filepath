@@ -1,12 +1,13 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE UnboxedTuples #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE UnboxedTuples #-}
 
-module AbstractFilePath.ShortByteString
+module Data.ByteString.Short
   (
 
   -- * Introducing and eliminating 'ShortByteString's
@@ -86,47 +87,94 @@ module AbstractFilePath.ShortByteString
   )
 where
 
-import Prelude hiding (break, take, drop, splitAt, concat, tail, head, all, span, map, elem, dropWhile, init, last, null, length, any)
+import Prelude hiding
+    ( all
+    , any
+    , break
+    , concat
+    , drop
+    , dropWhile
+    , elem
+    , head
+    , init
+    , last
+    , length
+    , map
+    , null
+    , span
+    , splitAt
+    , tail
+    , take
+    )
 
-import Data.ByteString.Short (ShortByteString, empty, pack, unpack, fromShort, toShort, null, length, index, packCString, packCStringLen, useAsCString, useAsCStringLen)
-import Data.ByteString.Short.Internal (ShortByteString(SBS), createFromPtr)
-import Data.Word8
+import "bytestring" Data.ByteString.Short
+    ( ShortByteString
+    , empty
+    , fromShort
+    , index
+    , length
+    , null
+    , pack
+    , packCString
+    , packCStringLen
+    , toShort
+    , unpack
+    , useAsCString
+    , useAsCStringLen
+    )
+import Data.ByteString.Short.Internal
+import "bytestring" Data.ByteString.Short.Internal
+    ( ShortByteString (SBS), createFromPtr )
 import qualified Data.Foldable as F
+import Data.Word8
 
-import qualified Data.ByteString.Short as BS
-import qualified Data.ByteString.Short.Internal as BS
-
-
-import AbstractFilePath.Internal.ShortByteString
+import qualified "bytestring" Data.ByteString.Short as BS
+import qualified "bytestring" Data.ByteString.Short.Internal as BS
 
 
-import Data.ByteString.Internal (ByteString(..), accursedUnutterablePerformIO, c_strlen, memcmp)
+import Data.ByteString.Internal
+    ( ByteString (..), accursedUnutterablePerformIO, c_strlen, memcmp )
 
-import Data.Typeable    (Typeable)
-import Data.Data        (Data(..), mkNoRepType)
+import Data.Data
+    ( Data (..), mkNoRepType )
+import Data.Typeable
+    ( Typeable )
 #if MIN_VERSION_base(4,9,0)
-import Data.Semigroup   (Semigroup((<>)))
+import Data.Semigroup
+    ( Semigroup ((<>)) )
 #endif
-import Data.Monoid      (Monoid(..))
-import Data.String      (IsString(..))
-import qualified Data.List as List (length, intersperse)
-import Foreign.C.String (CString, CStringLen)
-import Foreign.C.Types  (CSize(..), CInt(..))
-import Foreign.Marshal.Alloc (allocaBytes, mallocBytes, free)
+import qualified Data.List as List
+    ( intersperse, length )
+import Data.Monoid
+    ( Monoid (..) )
+import Data.String
+    ( IsString (..) )
+import Foreign.C.String
+    ( CString, CStringLen )
+import Foreign.C.Types
+    ( CInt (..), CSize (..) )
+import Foreign.ForeignPtr
+    ( touchForeignPtr )
+import Foreign.ForeignPtr.Unsafe
+    ( unsafeForeignPtrToPtr )
+import Foreign.Marshal.Alloc
+    ( allocaBytes, free, mallocBytes )
 import Foreign.Ptr
-import Foreign.ForeignPtr (touchForeignPtr)
-import Foreign.ForeignPtr.Unsafe (unsafeForeignPtrToPtr)
-import Foreign.Storable (pokeByteOff)
+import Foreign.Storable
+    ( pokeByteOff )
 
 import GHC.Exts
+import GHC.ForeignPtr
+    ( ForeignPtr (ForeignPtr), ForeignPtrContents (PlainPtr) )
 import GHC.IO
-import GHC.ForeignPtr (ForeignPtr(ForeignPtr), ForeignPtrContents(PlainPtr))
-import GHC.ST         (ST(ST), runST)
+import GHC.ST
+    ( ST (ST), runST )
 import GHC.Word
 
 
+import Data.Bits
+    ( FiniteBits (finiteBitSize), shiftL, (.&.), (.|.) )
 import Debug.Trace
-import Data.Bits ((.|.), shiftL, (.&.), FiniteBits (finiteBitSize))
 
 
 -- -----------------------------------------------------------------------------

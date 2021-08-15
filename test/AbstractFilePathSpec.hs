@@ -3,15 +3,17 @@
 module AbstractFilePathSpec where
 
 import AbstractFilePath
-import AbstractFilePath.Internal.Decode
+import Data.ByteString.Short.Decode
     ( decodeUtf16LE, decodeUtf8 )
-import AbstractFilePath.Internal.Encode
+import Data.ByteString.Short.Encode
     ( encodeUtf16LE, encodeUtf8 )
 
 import Arbitrary
-import Test.Hspec ( describe, it, Spec )
+import Test.Hspec
+    ( Spec, describe, it )
 import Test.Hspec.Checkers
-import Test.QuickCheck ( Testable(property) )
+import Test.QuickCheck
+    ( Testable (property) )
 import Test.QuickCheck.Classes
 
 

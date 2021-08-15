@@ -63,14 +63,13 @@ module AbstractFilePath
   -- * Types
     AbstractFilePath
   , WindowsFilePath
-  , WindowsString
-  , PosixString
+  , PosixFilePath
 
   -- * Construction
   , toAbstractFilePath
   , toAbstractFilePath'
   , fromByteString
-  , absFP
+  , absfp
 
   -- * Deconstruction
   , fromAbstractFilePath
@@ -78,5 +77,13 @@ module AbstractFilePath
   )
 where
 
-import AbstractFilePath.Internal ( toAbstractFilePath, toAbstractFilePath', fromByteString, fromAbstractFilePath, fromAbstractFilePath', absFP )
-import AbstractFilePath.Internal.Types ( AbstractFilePath, WindowsFilePath, PosixFilePath, WindowsString, PosixString )
+import AbstractFilePath.Internal
+    ( absfp
+    , fromAbstractFilePath
+    , fromAbstractFilePath'
+    , fromByteString
+    , toAbstractFilePath
+    , toAbstractFilePath'
+    )
+import AbstractFilePath.Internal.Types
+    ( AbstractFilePath, PosixFilePath, WindowsFilePath )

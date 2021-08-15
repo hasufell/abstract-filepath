@@ -4,7 +4,7 @@
 -- All function assumes that 'Word16' is encoded in UTF16-LE.
 --
 -- Works with Unicode7+ (GHC 7.10+ / Base library 4.8+).
-module AbstractFilePath.Word16 (
+module Data.Word16 (
   -- * Re-exporting
     Word16
   -- * Character classification
@@ -32,7 +32,8 @@ module AbstractFilePath.Word16 (
   , _germandbls, _agrave, _odieresis, _oslash, _thorn, _ydieresis
   ) where
 
-import Data.Word (Word16)
+import Data.Word
+    ( Word16 )
 
 ----------------------------------------------------------------
 

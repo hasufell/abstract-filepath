@@ -3,12 +3,20 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UnliftedFFITypes #-}
 
-module AbstractFilePath.Internal where
+module OsString.Internal where
 
-import AbstractFilePath.Internal.Types
-import OsString.Internal hiding
-    ( fromByteString, qq )
-import qualified OsString.Internal as OS
+import Data.ByteString.Short.Decode
+    ( decodeUtf16LE
+    , decodeUtf16LE'
+    , decodeUtf16LE''
+    , decodeUtf16LEWith
+    , decodeUtf8
+    , decodeUtf8'
+    , decodeUtf8With
+    )
+import Data.ByteString.Short.Encode
+    ( encodeUtf16LE, encodeUtf8 )
+import OsString.Internal.Types
 
 import Control.Exception
     ( throwIO )
@@ -58,17 +66,27 @@ import qualified Language.Haskell.TH.Syntax as TH
 --
 -- On windows this encodes as UTF16, which is expected.
 -- On unix this encodes as UTF8, which is a good guess.
-toAbstractFilePath :: String -> AbstractFilePath
-toAbstractFilePath = toOsString
-
+toOsString :: String -> OsString
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+toOsString = OsString . WS . encodeUtf16LE
+#else
+toOsString = OsString . PS . encodeUtf8
+#endif
 
 -- | Like 'toAbstractFilePath', except on unix this uses the current
 -- locale for encoding instead of always UTF8.
 --
 -- Looking up the locale requires IO. If you're not worried about calls
 -- to 'setFileSystemEncoding', then 'unsafePerformIO' may be feasible.
-toAbstractFilePath' :: String -> IO AbstractFilePath
-toAbstractFilePath' = toOsString'
+toOsString' :: String -> IO OsString
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+toOsString' = OsString . WS . encodeUtf16LE
+#else
+toOsString' str = do
+  enc <- getFileSystemEncoding
+  cstr <- GHC.newCString enc str
+  OsString . PS <$> BS.packCString cstr
+#endif
 
 
 -- | Partial unicode friendly decoding.
@@ -78,33 +96,44 @@ toAbstractFilePath' = toOsString'
 -- filenames on unix are encoding agnostic char arrays.
 --
 -- Throws a 'UnicodeException' if decoding fails.
---
--- Note that filenames of different encodings may have the same @String@
--- representation, although they're not the same byte-wise.
-fromAbstractFilePath :: MonadThrow m => AbstractFilePath -> m String
-fromAbstractFilePath = fromOsString
+fromOsString :: MonadThrow m => OsString -> m String
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+fromOsString (OsString (WS ba)) = either throwM pure $ decodeUtf16LE' ba
+#else
+fromOsString (OsString (PS ba)) = either throwM pure $ decodeUtf8' ba
+#endif
 
 
--- | Like 'fromAbstractFilePath', except on unix this uses the current
+-- | Like 'fromOsString', except on unix this uses the current
 -- locale for decoding instead of always UTF8.
 --
 -- Looking up the locale requires IO. If you're not worried about calls
 -- to 'setFileSystemEncoding', then 'unsafePerformIO' may be feasible.
 --
 -- Throws 'UnicodeException' if decoding fails.
-fromAbstractFilePath' :: AbstractFilePath -> IO String
-fromAbstractFilePath' = fromOsString'
+fromOsString' :: OsString -> IO String
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+fromOsString' (OsString (WS ba)) = either throwIO pure $ decodeUtf16LE' ba
+#else
+fromOsString' (OsString (PS ba)) = flip catchIOError (\_ -> throwIO (DecodeError "fromAbstractFilePath' failed" Nothing))
+  $ BS.useAsCString ba $ \fp -> getFileSystemEncoding >>= \enc -> GHC.peekCString enc fp
+#endif
 
 
--- | Constructs an @AbstractFilePath@ from a ByteString.
+-- | Constructs an @OsString@ from a ByteString.
 --
 -- On windows, this ensures valid UTF16, on unix it is passed unchanged/unchecked.
 --
 -- Throws 'UnicodeException' on invalid UTF16 on windows.
 fromByteString :: MonadThrow m
                => ByteString
-               -> m AbstractFilePath
-fromByteString = OS.fromByteString
+               -> m OsString
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+fromByteString bs =
+  either throwM (const . pure . OsString . WS . BS.toShort $ bs) $ decodeUtf16LE'' bs
+#else
+fromByteString = pure . OsString . PS . BS.toShort
+#endif
 
 
 qq :: (ByteString -> Q Exp) -> QuasiQuoter
@@ -130,18 +159,17 @@ qq quoteExp' =
   }
 #endif
 
-mkAbstractFilePath :: ByteString -> Q Exp
-mkAbstractFilePath bs = 
+mkOsString :: ByteString -> Q Exp
+mkOsString bs = 
   case fromByteString bs of
     Just afp ->
-      if True -- isValid afp -- TODO
+      if True
       then lift afp
-      else error "invalid filepath"
+      else error "invalid os string"
     Nothing -> error "invalid encoding"
 
--- | QuasiQuote an 'AbstractFilePath'. This accepts Unicode characters
--- and encodes as UTF-8 on unix and UTF-16 on windows. Runs 'filepathIsValid'
--- on the input.
-absfp :: QuasiQuoter
-absfp = qq mkAbstractFilePath
+-- | QuasiQuote an 'OsString'. This accepts Unicode characters
+-- and encodes as UTF-8 on unix and UTF-16 on windows.
+osstr :: QuasiQuoter
+osstr = qq mkOsString
 

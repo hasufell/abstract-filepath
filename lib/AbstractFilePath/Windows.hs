@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE PackageImports #-}
 
 
 module AbstractFilePath.Windows
@@ -70,24 +71,32 @@ module AbstractFilePath.Windows
 where
 
 
+import AbstractFilePath.Internal.Types
+    ( WindowsFilePath )
 import AbstractFilePath.Internal.Windows
-  ( pathSeparator
-  , pathSeparators
-  , isPathSeparator
-  , searchPathSeparator
-  , isSearchPathSeparator
-  , extSeparator
-  , isExtSeparator
-  )
-import AbstractFilePath.Internal.Types ( WindowsString(..), WindowsFilePath )
+    ( extSeparator
+    , isExtSeparator
+    , isPathSeparator
+    , isSearchPathSeparator
+    , pathSeparator
+    , pathSeparators
+    , searchPathSeparator
+    )
+import OsString.Internal.Types
+    ( WindowsString (..) )
 
-import Control.Arrow (second)
-import Data.Bifunctor (bimap, first)
-import Data.ByteString (ByteString)
-import Data.Maybe (isJust)
+import Control.Arrow
+    ( second )
+import Data.Bifunctor
+    ( bimap, first )
+import Data.ByteString
+    ( ByteString )
+import "bytestring" Data.ByteString.Short
+    ( ShortByteString )
+import Data.Maybe
+    ( isJust )
 import Data.Word8
     ( Word8, _colon, _nul, _period, _slash, _underscore )
-import Data.ByteString.Short (ShortByteString)
 
 import qualified AbstractFilePath.Internal.Windows as C
 
@@ -101,7 +110,7 @@ import qualified AbstractFilePath.Internal.Windows as C
 -- >>> import AbstractFilePath.Internal.Types (WindowsString (..))
 -- >>> import qualified AbstractFilePath.ShortByteString.Word16 as BS
 -- >>> instance Arbitrary ShortByteString where arbitrary = sized $ \n -> choose (0,n) >>= \k -> fmap BS.pack $ vectorOf (if even k then k else k + 1) arbitrary
--- >>> instance Arbitrary WindowsString where arbitrary = WFP <$> arbitrary
+-- >>> instance Arbitrary WindowsString where arbitrary = WS <$> arbitrary
 --
 -- >>> let _chr :: Word8 -> Char; _chr = chr . fromIntegral
 
@@ -124,7 +133,7 @@ import qualified AbstractFilePath.Internal.Windows as C
 -- >>> splitSearchPath ""
 -- []
 splitSearchPath :: WindowsString -> [WindowsFilePath]
-splitSearchPath (WFP s) = fmap WFP . C.splitSearchPath $ s
+splitSearchPath (WS s) = fmap WS . C.splitSearchPath $ s
 
 
 
@@ -142,9 +151,9 @@ splitSearchPath (WFP s) = fmap WFP . C.splitSearchPath $ s
 -- >>> splitExtension ".exe"
 -- (".exe","")
 --
--- prop> \path -> WFP (uncurry (\a b -> BS.append (unWFP a) (unWFP b)) (splitExtension path)) == path
+-- prop> \path -> WS (uncurry (\a b -> BS.append (unWFP a) (unWFP b)) (splitExtension path)) == path
 splitExtension :: WindowsFilePath -> (WindowsFilePath, WindowsString)
-splitExtension (WFP x) = bimap WFP WFP $ C.splitExtension x
+splitExtension (WS x) = bimap WS WS $ C.splitExtension x
 
 
 -- | Get the file extension from a 'WindowsFilePath'
@@ -156,14 +165,14 @@ splitExtension (WFP x) = bimap WFP WFP $ C.splitExtension x
 -- >>> takeExtension "/path/file.tar.gz"
 -- ".gz"
 takeExtension :: WindowsFilePath -> WindowsString
-takeExtension (WFP x) = WFP $ C.takeExtension x
+takeExtension (WS x) = WS $ C.takeExtension x
 
 
 -- | Change a file's extension
 --
 -- prop> \path -> let ext = takeExtension path in replaceExtension path ext == path
 replaceExtension :: WindowsFilePath -> WindowsString -> WindowsFilePath
-replaceExtension (WFP path) (WFP ext) = WFP (C.replaceExtension path ext)
+replaceExtension (WS path) (WS ext) = WS (C.replaceExtension path ext)
 
 
 -- | Drop the final extension from a 'WindowsFilePath'
@@ -177,7 +186,7 @@ replaceExtension (WFP path) (WFP ext) = WFP (C.replaceExtension path ext)
 -- >>> dropExtension "/path/file.tar.gz"
 -- "/path/file.tar"
 dropExtension :: WindowsFilePath -> WindowsFilePath
-dropExtension (WFP x) = WFP $ C.dropExtension x
+dropExtension (WS x) = WS $ C.dropExtension x
 
 
 -- | Add an extension to a 'WindowsFilePath'
@@ -189,7 +198,7 @@ dropExtension (WFP x) = WFP $ C.dropExtension x
 -- >>> addExtension "/path/" ".ext"
 -- "/path/.ext"
 addExtension :: WindowsFilePath -> WindowsString -> WindowsFilePath
-addExtension (WFP bs) (WFP ext) = WFP $ C.addExtension bs ext
+addExtension (WS bs) (WS ext) = WS $ C.addExtension bs ext
 
 
 -- | Check if a 'WindowsFilePath' has an extension
@@ -201,7 +210,7 @@ addExtension (WFP bs) (WFP ext) = WFP $ C.addExtension bs ext
 -- >>> hasExtension "/path.part1/"
 -- False
 hasExtension :: WindowsFilePath -> Bool
-hasExtension (WFP x) = C.hasExtension x
+hasExtension (WS x) = C.hasExtension x
 
 
 -- | Operator version of 'addExtension'
@@ -216,7 +225,7 @@ hasExtension (WFP x) = C.hasExtension x
 --
 -- prop> \path -> uncurry addExtension (splitExtensions path) == path
 splitExtensions :: WindowsFilePath -> (WindowsFilePath, WindowsString)
-splitExtensions (WFP x) = bimap WFP WFP $  C.splitExtensions x
+splitExtensions (WS x) = bimap WS WS $  C.splitExtensions x
 
 
 -- | Remove all extensions from a 'WindowsFilePath'
@@ -224,7 +233,7 @@ splitExtensions (WFP x) = bimap WFP WFP $  C.splitExtensions x
 -- >>> dropExtensions "/path/file.tar.gz"
 -- "/path/file"
 dropExtensions :: WindowsFilePath -> WindowsFilePath
-dropExtensions (WFP x) = WFP $ C.dropExtensions x
+dropExtensions (WS x) = WS $ C.dropExtensions x
 
 
 -- | Take all extensions from a 'WindowsFilePath'
@@ -232,7 +241,7 @@ dropExtensions (WFP x) = WFP $ C.dropExtensions x
 -- >>> takeExtensions "/path/file.tar.gz"
 -- ".tar.gz"
 takeExtensions :: WindowsFilePath -> WindowsString
-takeExtensions (WFP x) = WFP $ C.takeExtensions x
+takeExtensions (WS x) = WS $ C.takeExtensions x
 
 
 -- | Drop the given extension from a FilePath, and the @\".\"@ preceding it.
@@ -259,7 +268,7 @@ takeExtensions (WFP x) = WFP $ C.takeExtensions x
 -- prop> \path -> dropExtension path  == fromJust (stripExtension (takeExtension path) path)
 -- prop> \path -> dropExtensions path == fromJust (stripExtension (takeExtensions path) path)
 stripExtension :: WindowsString -> WindowsFilePath -> Maybe WindowsFilePath
-stripExtension (WFP bs) (WFP x) = fmap WFP $ C.stripExtension bs x
+stripExtension (WS bs) (WS x) = fmap WS $ C.stripExtension bs x
 
 
 ------------------------
@@ -277,7 +286,7 @@ stripExtension (WFP bs) (WFP x) = fmap WFP $ C.stripExtension bs x
 --
 -- prop> \path -> uncurry combine (splitFileName path) == path || fst (splitFileName path) == ".\\"
 splitFileName :: WindowsFilePath -> (WindowsFilePath, WindowsFilePath)
-splitFileName (WFP x) = bimap WFP WFP $ C.splitFileName x
+splitFileName (WS x) = bimap WS WS $ C.splitFileName x
 
 
 -- | Get the file name
@@ -287,14 +296,14 @@ splitFileName (WFP x) = bimap WFP WFP $ C.splitFileName x
 -- >>> takeFileName "path/"
 -- ""
 takeFileName :: WindowsFilePath -> WindowsFilePath
-takeFileName (WFP x) = WFP $ C.takeFileName x
+takeFileName (WS x) = WS $ C.takeFileName x
 
 
 -- | Change the file name
 --
 -- prop> \path -> let fn = takeFileName path in replaceFileName path fn == path
 replaceFileName :: WindowsFilePath -> WindowsString -> WindowsFilePath
-replaceFileName (WFP x) (WFP y) = WFP $ C.replaceFileName x y
+replaceFileName (WS x) (WS y) = WS $ C.replaceFileName x y
 
 
 -- | Drop the file name
@@ -304,7 +313,7 @@ replaceFileName (WFP x) (WFP y) = WFP $ C.replaceFileName x y
 -- >>> dropFileName "file.txt"
 -- ".\"
 dropFileName :: WindowsFilePath -> WindowsFilePath
-dropFileName (WFP x) = WFP $ C.dropFileName x
+dropFileName (WS x) = WS $ C.dropFileName x
 
 
 -- | Get the file name, without a trailing extension
@@ -314,7 +323,7 @@ dropFileName (WFP x) = WFP $ C.dropFileName x
 -- >>> takeBaseName ""
 -- ""
 takeBaseName :: WindowsFilePath -> WindowsFilePath
-takeBaseName (WFP x) = WFP $ C.takeBaseName x
+takeBaseName (WS x) = WS $ C.takeBaseName x
 
 
 -- | Change the base name
@@ -324,7 +333,7 @@ takeBaseName (WFP x) = WFP $ C.takeBaseName x
 --
 -- prop> \path -> let baseName = takeBaseName path in replaceBaseName path baseName == path
 replaceBaseName :: WindowsFilePath -> WindowsString -> WindowsFilePath
-replaceBaseName (WFP path) (WFP name) = WFP $ C.replaceBaseName path name
+replaceBaseName (WS path) (WS name) = WS $ C.replaceBaseName path name
 
 
 -- | Get the directory, moving up one level if it's already a directory
@@ -338,14 +347,14 @@ replaceBaseName (WFP path) (WFP name) = WFP $ C.replaceBaseName path name
 -- >>> takeDirectory "/path/to"
 -- "/path"
 takeDirectory :: WindowsFilePath -> WindowsFilePath
-takeDirectory (WFP x) = WFP $ C.takeDirectory x
+takeDirectory (WS x) = WS $ C.takeDirectory x
 
 
 -- | Change the directory component of a 'WindowsFilePath'
 --
 -- prop> \path -> replaceDirectory path (takeDirectory path) `equalFilePath` path || takeDirectory path == "."
 replaceDirectory :: WindowsFilePath -> WindowsFilePath -> WindowsFilePath
-replaceDirectory (WFP file) (WFP dir) = WFP $ C.replaceDirectory file dir
+replaceDirectory (WS file) (WS dir) = WS $ C.replaceDirectory file dir
 
 
 -- | Join two paths together. If the second path is absolute, then returns it, ignoring
@@ -358,7 +367,7 @@ replaceDirectory (WFP file) (WFP dir) = WFP $ C.replaceDirectory file dir
 -- >>> combine "file" "/absolute/path"
 -- "/absolute/path"
 combine :: WindowsFilePath -> WindowsFilePath -> WindowsFilePath
-combine (WFP a) (WFP b) = WFP $ C.combine a b
+combine (WS a) (WS b) = WS $ C.combine a b
 
 
 -- | Operator version of combine
@@ -370,9 +379,9 @@ combine (WFP a) (WFP b) = WFP $ C.combine a b
 -- >>> splitPath "/path/to/file.txt"
 -- ["/","path/","to/","file.txt"]
 --
--- prop> \path -> WFP (BS.concat (fmap (\(WFP fp) -> fp) (splitPath path))) == path
+-- prop> \path -> WS (BS.concat (fmap (\(WS fp) -> fp) (splitPath path))) == path
 splitPath :: WindowsFilePath -> [WindowsFilePath]
-splitPath (WFP bs) = fmap WFP $ C.splitPath bs
+splitPath (WS bs) = fmap WS $ C.splitPath bs
 
 
 -- | Join a split path back together
@@ -380,9 +389,9 @@ splitPath (WFP bs) = fmap WFP $ C.splitPath bs
 -- prop> \path -> joinPath (splitPath path) == path
 --
 -- >>> joinPath ["path","to","file.txt"]
--- WFP "path/to/file.txt"
+-- WS "path/to/file.txt"
 joinPath :: [WindowsFilePath] -> WindowsFilePath
-joinPath = foldr (</>) (WFP mempty)
+joinPath = foldr (</>) (WS mempty)
 
 
 -- | Like 'splitPath', but without trailing slashes
@@ -396,7 +405,7 @@ joinPath = foldr (</>) (WFP mempty)
 -- >>> splitDirectories ""
 -- []
 splitDirectories :: WindowsFilePath -> [WindowsFilePath]
-splitDirectories (WFP x) = fmap WFP $ C.splitDirectories x
+splitDirectories (WS x) = fmap WS $ C.splitDirectories x
 
 
 -- |Get all parents of a path.
@@ -408,7 +417,7 @@ splitDirectories (WFP x) = fmap WFP $ C.splitDirectories x
 -- >>> takeAllParents "/"
 -- []
 takeAllParents :: WindowsFilePath -> [WindowsFilePath]
-takeAllParents (WFP p) = fmap WFP $ C.takeAllParents p
+takeAllParents (WS p) = fmap WS $ C.takeAllParents p
 
 
 ------------------------
@@ -428,21 +437,21 @@ takeAllParents (WFP p) = fmap WFP $ C.takeAllParents p
 --
 -- prop> \x -> uncurry (<>) (splitDrive x) == x
 splitDrive :: WindowsFilePath -> (WindowsFilePath, WindowsFilePath)
-splitDrive (WFP p) = bimap WFP WFP $ C.splitDrive p
+splitDrive (WS p) = bimap WS WS $ C.splitDrive p
 
 
 -- | Join a drive and the rest of the path.
 --
 -- prop> \x -> uncurry joinDrive (splitDrive x) == x
 joinDrive :: WindowsFilePath -> WindowsFilePath -> WindowsFilePath
-joinDrive (WFP a) (WFP b) = WFP $ C.joinDrive a b
+joinDrive (WS a) (WS b) = WS $ C.joinDrive a b
 
 
 -- | Get the drive from a filepath.
 --
 -- prop> \x -> takeDrive x == fst (splitDrive x)
 takeDrive :: WindowsFilePath -> WindowsFilePath
-takeDrive (WFP x) = WFP $ C.takeDrive x
+takeDrive (WS x) = WS $ C.takeDrive x
 
 
 -- | Does a path have a drive.
@@ -452,16 +461,16 @@ takeDrive (WFP x) = WFP $ C.takeDrive x
 -- >>> hasDrive "foo"
 -- False
 --
--- prop> \x -> not (hasDrive x) == BS.null ((\(WFP x) -> x) $ takeDrive x)
+-- prop> \x -> not (hasDrive x) == BS.null ((\(WS x) -> x) $ takeDrive x)
 hasDrive :: WindowsFilePath -> Bool
-hasDrive (WFP x) = C.hasDrive x
+hasDrive (WS x) = C.hasDrive x
 
 
 -- | Delete the drive, if it exists.
 --
 -- prop> \x -> dropDrive x == snd (splitDrive x)
 dropDrive :: WindowsFilePath -> WindowsFilePath
-dropDrive (WFP x) = WFP $ C.dropDrive x
+dropDrive (WS x) = WS $ C.dropDrive x
 
 
 -- | Is an element a drive
@@ -471,7 +480,7 @@ dropDrive (WFP x) = WFP $ C.dropDrive x
 -- >>> isDrive "/foo"
 -- False
 isDrive :: WindowsFilePath -> Bool
-isDrive (WFP x) = C.isDrive x
+isDrive (WS x) = C.isDrive x
 
 
 ------------------------
@@ -486,7 +495,7 @@ isDrive (WFP x) = C.isDrive x
 -- >>> hasTrailingPathSeparator "/path"
 -- False
 hasTrailingPathSeparator :: WindowsFilePath -> Bool
-hasTrailingPathSeparator (WFP x) = C.hasTrailingPathSeparator x
+hasTrailingPathSeparator (WS x) = C.hasTrailingPathSeparator x
 
 
 -- | Add a trailing path separator.
@@ -498,7 +507,7 @@ hasTrailingPathSeparator (WFP x) = C.hasTrailingPathSeparator x
 -- >>> addTrailingPathSeparator "/"
 -- "/"
 addTrailingPathSeparator :: WindowsFilePath -> WindowsFilePath
-addTrailingPathSeparator (WFP bs) = WFP $ C.addTrailingPathSeparator bs
+addTrailingPathSeparator (WS bs) = WS $ C.addTrailingPathSeparator bs
 
 
 -- | Remove a trailing path separator
@@ -512,7 +521,7 @@ addTrailingPathSeparator (WFP bs) = WFP $ C.addTrailingPathSeparator bs
 -- >>> dropTrailingPathSeparator "//"
 -- "/"
 dropTrailingPathSeparator :: WindowsFilePath -> WindowsFilePath
-dropTrailingPathSeparator (WFP x) = WFP $ C.dropTrailingPathSeparator x
+dropTrailingPathSeparator (WS x) = WS $ C.dropTrailingPathSeparator x
 
 
 
@@ -549,7 +558,7 @@ dropTrailingPathSeparator (WFP x) = WFP $ C.dropTrailingPathSeparator x
 -- >>> normalise "//home"
 -- "/home"
 normalise :: WindowsFilePath -> WindowsFilePath
-normalise (WFP filepath) = WFP $ C.normalise filepath
+normalise (WS filepath) = WS $ C.normalise filepath
 
 
 -- | Contract a filename, based on a relative path. Note that the resulting
@@ -577,7 +586,7 @@ normalise (WFP filepath) = WFP $ C.normalise filepath
 -- prop> \p -> makeRelative (takeDirectory p) p `equalFilePath` takeFileName p
 -- prop \x y -> equalFilePath x y || (isRelative x && makeRelative y x == x) || equalFilePath (y </> makeRelative y x) x
 makeRelative :: WindowsFilePath -> WindowsFilePath -> WindowsFilePath
-makeRelative (WFP root) (WFP path) = WFP $ C.makeRelative root path
+makeRelative (WS root) (WS path) = WS $ C.makeRelative root path
 
 
 -- |Equality of two filepaths. The filepaths are normalised
@@ -600,14 +609,14 @@ makeRelative (WFP root) (WFP path) = WFP $ C.makeRelative root path
 --
 -- prop> \p -> equalFilePath p p
 equalFilePath :: WindowsFilePath -> WindowsFilePath -> Bool
-equalFilePath (WFP p1) (WFP p2) = C.equalFilePath p1 p2
+equalFilePath (WS p1) (WS p2) = C.equalFilePath p1 p2
 
 
 -- | Check if a path is relative
 --
 -- prop> \path -> isRelative path /= isAbsolute path
 isRelative :: WindowsFilePath -> Bool
-isRelative (WFP x) = C.isRelative x
+isRelative (WS x) = C.isRelative x
 
 
 -- | Check if a path is absolute
@@ -619,7 +628,7 @@ isRelative (WFP x) = C.isRelative x
 -- >>> isAbsolute ""
 -- False
 isAbsolute :: WindowsFilePath -> Bool
-isAbsolute (WFP x) = C.isAbsolute x
+isAbsolute (WS x) = C.isAbsolute x
 
 
 -- | Is a FilePath valid, i.e. could you create a file like it?
@@ -631,7 +640,7 @@ isAbsolute (WFP x) = C.isAbsolute x
 -- >>> isValid "/random_ path:*"
 -- True
 isValid :: WindowsFilePath -> Bool
-isValid (WFP filepath) = C.isValid filepath
+isValid (WS filepath) = C.isValid filepath
 
 
 -- | Take a FilePath and make it valid; does not change already valid FilePaths.
@@ -644,7 +653,7 @@ isValid (WFP filepath) = C.isValid filepath
 -- prop> \p -> if isValid p then makeValid p == p else makeValid p /= p
 -- prop> \p -> isValid (makeValid p)
 makeValid :: WindowsFilePath -> WindowsFilePath
-makeValid (WFP path) = WFP $ C.makeValid path
+makeValid (WS path) = WS $ C.makeValid path
 
 
 -- | Is the given path a valid filename? This includes
@@ -663,7 +672,7 @@ makeValid (WFP path) = WFP $ C.makeValid path
 -- >>> isFileName "/random_ path:*"
 -- False
 isFileName :: WindowsFilePath -> Bool
-isFileName (WFP filepath) = C.isFileName filepath
+isFileName (WS filepath) = C.isFileName filepath
 
 
 -- | Check if the filepath has any parent directories in it.
@@ -683,6 +692,6 @@ isFileName (WFP filepath) = C.isFileName filepath
 -- >>> hasParentDir ".."
 -- False
 hasParentDir :: WindowsFilePath -> Bool
-hasParentDir (WFP filepath) = C.hasParentDir filepath
+hasParentDir (WS filepath) = C.hasParentDir filepath
 
 

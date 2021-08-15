@@ -1,26 +1,74 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE PackageImports #-}
 -- This template expects CPP definitions for:
 --     MODULE_NAME = Posix | Windows
 --     IS_WINDOWS  = False | True
 
 module AbstractFilePath.Internal.MODULE_NAME where
 
-import Prelude hiding (Word)
+import Prelude hiding
+    ( Word )
 
-import Control.Arrow (second)
-import Data.ByteString (ByteString)
-import Data.Maybe (isJust)
-import Data.ByteString.Short (ShortByteString)
+import Control.Arrow
+    ( second )
+import Data.ByteString
+    ( ByteString )
+import "bytestring" Data.ByteString.Short
+    ( ShortByteString )
+import Data.Maybe
+    ( isJust )
 
 #ifdef WINDOWS
-import qualified AbstractFilePath.ShortByteString.Word16 as BS
-import GHC.Word (Word16)
-import AbstractFilePath.Word16
-    ( _colon, _nul, _period, _slash, _underscore, _backslash, _semicolon, _quotedbl, isLetter, toLower, toUpper, _question, _U, _N, _C, isSpace, _less, _greater, _bar, _asterisk)
+import qualified Data.ByteString.Short.Word16 as BS
+import Data.Word16
+    ( isLetter
+    , isSpace
+    , toLower
+    , toUpper
+    , _C
+    , _N
+    , _U
+    , _asterisk
+    , _backslash
+    , _bar
+    , _colon
+    , _greater
+    , _less
+    , _nul
+    , _period
+    , _question
+    , _quotedbl
+    , _semicolon
+    , _slash
+    , _underscore
+    )
+import GHC.Word
+    ( Word16 )
 #else
-import qualified AbstractFilePath.ShortByteString as BS
+import qualified Data.ByteString.Short as BS
 import Data.Word8
-    ( Word8, _colon, _nul, _period, _slash, _underscore, _backslash, _semicolon, _quotedbl, isLetter, toLower, toUpper, _question, _U, _N, _C, isSpace, _less, _greater, _bar, _asterisk)
+    ( Word8
+    , isLetter
+    , isSpace
+    , toLower
+    , toUpper
+    , _C
+    , _N
+    , _U
+    , _asterisk
+    , _backslash
+    , _bar
+    , _colon
+    , _greater
+    , _less
+    , _nul
+    , _period
+    , _question
+    , _quotedbl
+    , _semicolon
+    , _slash
+    , _underscore
+    )
 #endif
 import Data.String
 

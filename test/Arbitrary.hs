@@ -1,12 +1,12 @@
 module Arbitrary where
 
-import AbstractFilePath
+import OsString
 
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Checkers
 
-instance Arbitrary AbstractFilePath where
-  arbitrary = toAbstractFilePath <$> arbitrary
+instance Arbitrary OsString where
+  arbitrary = toOsString <$> arbitrary
 
-instance EqProp AbstractFilePath where
+instance EqProp OsString where
   (=-=) = eq
