@@ -22,7 +22,9 @@ library
   exposed-modules:
     AbstractFilePath
     AbstractFilePath.Internal
+    AbstractFilePath.Internal.Posix
     AbstractFilePath.Internal.Types
+    AbstractFilePath.Internal.Windows
     AbstractFilePath.Posix
     AbstractFilePath.Windows
     Data.ByteString.Short
@@ -34,10 +36,6 @@ library
     OsString
     OsString.Internal
     OsString.Internal.Types
-
-  other-modules:
-    AbstractFilePath.Internal.Posix
-    AbstractFilePath.Internal.Windows
 
   -- other-extensions:
   build-depends:
