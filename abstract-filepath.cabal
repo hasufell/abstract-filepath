@@ -1,22 +1,17 @@
 cabal-version:      3.0
 name:               abstract-filepath
 version:            0.1.0.0
+license:            MIT
+license-file:       LICENSE
+maintainer:         hasufell@posteo.de
+author:             Julian Ospald
 synopsis:           Abstract cross-platform FilePath
 description:
   This is a user-space implementation of the Abstract FilePath Proposal (AFPP) authored by Herbert Valerio Riedel, Neil Mitchell & Michael Snoyman.
 
-homepage:
-
--- bug-reports:
-license:            MIT
-license-file:       LICENSE
-author:             Julian Ospald
-maintainer:         hasufell@posteo.de
-
--- copyright:
 category:           System
-extra-doc-files:    CHANGELOG.md
 extra-source-files: lib/AbstractFilePath/Internal/Common.hs
+extra-doc-files:    CHANGELOG.md
 
 library
   exposed-modules:
@@ -37,7 +32,8 @@ library
     OsString.Internal
     OsString.Internal.Types
 
-  -- other-extensions:
+  hs-source-dirs:   lib
+  default-language: Haskell2010
   build-depends:
     , base              >=4.10    && <5
     , bytestring        ^>=0.10
@@ -46,24 +42,20 @@ library
     , text              ^>=1.2.4.1
     , word8             ^>=0.1
 
-  hs-source-dirs:   lib
-  default-language: Haskell2010
-
 test-suite abstract-filepath-test
-  default-language:   Haskell2010
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test
   main-is:            Test.hs
+  build-tool-depends: hspec-discover:hspec-discover -any
+  hs-source-dirs:     test
   other-modules:
     AbstractFilePathSpec
     Arbitrary
 
+  default-language:   Haskell2010
   build-depends:
     , abstract-filepath
-    , base               >=4.10 && <5
-    , checkers
-    , hspec
-    , hspec-checkers
-    , QuickCheck
-
-  build-tool-depends: hspec-discover:hspec-discover -any
+    , base               >=4.10    && <5
+    , checkers           ^>=0.5.6
+    , hspec              ^>=2.8.2
+    , hspec-checkers     ^>=0.1.0.2
+    , QuickCheck         ^>=2.14.2
