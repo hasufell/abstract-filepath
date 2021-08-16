@@ -50,10 +50,29 @@ import qualified Language.Haskell.TH.Syntax as TH
 -- | Commonly used windows string as UTF16 bytes.
 newtype WindowsString = WS { unWFP :: BS.ShortByteString }
   deriving (Eq, Ord, Semigroup, Monoid)
+
+instance Lift WindowsString where
+  lift (WS bs)
+    = [| (WS (BS.pack $(lift $ BS.unpack bs))) :: WindowsString |]
+#if MIN_VERSION_template_haskell(2,17,0)
+  liftTyped = TH.unsafeCodeCoerce . TH.lift
+#elif MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = TH.unsafeTExpCoerce . TH.lift
+#endif
+
 -- | Commonly used Posix string as uninterpreted @char[]@
 -- array.
 newtype PosixString   = PS { unPFP :: BS.ShortByteString }
   deriving (Eq, Ord, Semigroup, Monoid)
+
+instance Lift PosixString where
+  lift (PS bs)
+    = [| (PS (BS.pack $(lift $ BS.unpack bs))) :: PosixString |]
+#if MIN_VERSION_template_haskell(2,17,0)
+  liftTyped = TH.unsafeCodeCoerce . TH.lift
+#elif MIN_VERSION_template_haskell(2,16,0)
+  liftTyped = TH.unsafeTExpCoerce . TH.lift
+#endif
 
 instance Show WindowsString where
   show (WS bs) = ('\"': decodeUtf16LE bs) <> "\""
@@ -91,7 +110,7 @@ type PlatformWord = PosixWord
 -- depending on the platform. Both use unpinned
 -- 'ShortByteString' for efficiency and correctness.
 --
--- The constructor is only exported via "AbstractFilePath.Internal.Types", since
+-- The constructor is only exported via "AFP.OsString.Internal.Types", since
 -- dealing with the internals isn't generally recommended, but supported
 -- in case you need to write platform specific code, such as the implementation
 -- of 'fromAbstractFilePath'.

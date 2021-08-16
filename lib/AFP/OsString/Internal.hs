@@ -67,6 +67,13 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 import qualified GHC.Foreign as GHC
 import qualified Language.Haskell.TH.Syntax as TH
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+import AFP.OsString.Windows hiding ( fromChar )
+import qualified AFP.OsString.Windows as PF
+#else
+import AFP.OsString.Posix  hiding ( fromChar )
+import qualified AFP.OsString.Posix as PF
+#endif
 
 
 
@@ -76,11 +83,7 @@ import qualified Language.Haskell.TH.Syntax as TH
 -- On windows this encodes as UTF16, which is expected.
 -- On unix this encodes as UTF8, which is a good guess.
 toOsString :: String -> OsString
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-toOsString = OsString . WS . encodeUtf16LE
-#else
-toOsString = OsString . PS . encodeUtf8
-#endif
+toOsString = OsString . toPlatformString
 
 -- | Like 'toOsString', except on unix this uses the current
 -- locale for encoding instead of always UTF8.
@@ -88,14 +91,7 @@ toOsString = OsString . PS . encodeUtf8
 -- Looking up the locale requires IO. If you're not worried about calls
 -- to 'setFileSystemEncoding', then 'unsafePerformIO' may be feasible.
 toOsStringIO :: String -> IO OsString
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-toOsStringIO = OsString . WS . encodeUtf16LE
-#else
-toOsStringIO str = do
-  enc <- getFileSystemEncoding
-  cstr <- GHC.newCString enc str
-  OsString . PS <$> BSP.packCString cstr
-#endif
+toOsStringIO = fmap OsString . toPlatformStringIO
 
 
 -- | Partial unicode friendly decoding.
@@ -106,11 +102,7 @@ toOsStringIO str = do
 --
 -- Throws a 'UnicodeException' if decoding fails.
 fromOsString :: MonadThrow m => OsString -> m String
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromOsString (OsString (WS ba)) = either throwM pure $ decodeUtf16LE' ba
-#else
-fromOsString (OsString (PS ba)) = either throwM pure $ decodeUtf8' ba
-#endif
+fromOsString (OsString x) = fromPlatformString x
 
 
 -- | Like 'fromOsString', except on unix this uses the current
@@ -121,12 +113,7 @@ fromOsString (OsString (PS ba)) = either throwM pure $ decodeUtf8' ba
 --
 -- Throws 'UnicodeException' if decoding fails.
 fromOsStringIO :: OsString -> IO String
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromOsStringIO (OsString (WS ba)) = either throwIO pure $ decodeUtf16LE' ba
-#else
-fromOsStringIO (OsString (PS ba)) = flip catchIOError (\_ -> throwIO (DecodeError "fromAbstractFilePath' failed" Nothing))
-  $ BSP.useAsCString ba $ \fp -> getFileSystemEncoding >>= \enc -> GHC.peekCString enc fp
-#endif
+fromOsStringIO (OsString x) = fromPlatformStringIO x
 
 
 -- | Constructs an @OsString@ from a ByteString.
@@ -137,12 +124,7 @@ fromOsStringIO (OsString (PS ba)) = flip catchIOError (\_ -> throwIO (DecodeErro
 bsToOsString :: MonadThrow m
              => ByteString
              -> m OsString
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-bsToOsString bs =
-  either throwM (const . pure . OsString . WS . toShort $ bs) $ decodeUtf16LE'' bs
-#else
-bsToOsString = pure . OsString . PS . toShort
-#endif
+bsToOsString = fmap OsString . bsToPlatformString
 
 
 qq :: (ByteString -> Q Exp) -> QuasiQuoter
@@ -181,24 +163,12 @@ osstr = qq mkOsString
 
 
 unpackOsString :: OsString -> [OsWord]
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-unpackOsString (OsString (WS ba)) = fmap (OsWord . WW) $ BS.unpack ba
-#else
-unpackOsString (OsString (PS ba)) = fmap (OsWord . PW) $ BS.unpack ba
-#endif
+unpackOsString (OsString x) = fmap OsWord $ unpackPlatformString x
 
 
 packOsString :: [OsWord] -> OsString
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-packOsString ws = OsString . WS . BS.pack . fmap (\(OsWord (WW w)) -> w) $ ws
-#else
-packOsString ws = OsString . PS . BS.pack . fmap (\(OsWord (PW w)) -> w) $ ws
-#endif
+packOsString = OsString . packPlatformString . fmap (\(OsWord x) -> x)
 
 
 fromChar :: Char -> OsWord
-#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromChar = OsWord . WW . fromIntegral . fromEnum
-#else
-fromChar = OsWord . PW . fromIntegral . fromEnum
-#endif
+fromChar = OsWord . PF.fromChar

@@ -7,8 +7,33 @@
 
 module AFP.AbstractFilePath.MODULE_NAME
   (
+  -- * Types
+#ifdef WINDOWS
+    WindowsString
+  , WindowsWord
+  , WindowsFilePath
+#else
+    PosixString
+  , PosixWord
+  , PosixFilePath
+#endif
+  -- * String construction
+  , toPlatformString
+  , toPlatformStringIO
+  , bsToPlatformString
+  , pstr
+  , packPlatformString
+
+  -- * String deconstruction
+  , fromPlatformString
+  , fromPlatformStringIO
+  , unpackPlatformString
+
+  -- * Word construction
+  , fromChar
+
   -- * Separator predicates
-    pathSeparator
+  , pathSeparator
   , pathSeparators
   , isPathSeparator
   , searchPathSeparator
@@ -87,6 +112,19 @@ import AFP.AbstractFilePath.Internal.Types
 import qualified AFP.AbstractFilePath.Internal.MODULE_NAME as IP
 import AFP.AbstractFilePath.Internal.Types
 import AFP.OsString.Internal.Types
+
+import AFP.OsString.MODULE_NAME (
+    toPlatformString
+  , toPlatformStringIO
+  , bsToPlatformString
+  , pstr
+  , packPlatformString
+  , fromPlatformString
+  , fromPlatformStringIO
+  , unpackPlatformString
+  , fromChar
+  )
+
 
 import Control.Arrow
     ( second )

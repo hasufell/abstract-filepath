@@ -18,8 +18,6 @@ module AFP.OsString
   (
   -- * String types
     OsString
-  , WindowsString
-  , PosixString
 
   -- * String construction
   , toOsString
@@ -35,8 +33,6 @@ module AFP.OsString
 
   -- * Word types
   , OsWord
-  , WindowsWord
-  , PosixWord
 
   -- * Word construction
   , fromChar

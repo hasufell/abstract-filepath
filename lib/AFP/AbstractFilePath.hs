@@ -64,18 +64,23 @@ module AFP.AbstractFilePath
   (
   -- * Types
     AbstractFilePath
-  , WindowsFilePath
-  , PosixFilePath
+  , OsString
+  , OsWord
 
   -- * Construction
   , toAbstractFilePath
   , toAbstractFilePathIO
   , bsToAFP
   , afp
+  , packAFP
 
   -- * Deconstruction
   , fromAbstractFilePath
   , fromAbstractFilePathIO
+  , unpackAFP
+
+  -- * Word construction
+  , fromChar
 
   -- * Separator predicates
   , pathSeparator
@@ -140,7 +145,6 @@ module AFP.AbstractFilePath
   , makeValid
   , isFileName
   , hasParentDir
-  , module AFP.OsString
   )
 where
 
@@ -151,10 +155,13 @@ import AFP.AbstractFilePath.Internal
     , fromAbstractFilePathIO
     , toAbstractFilePath
     , toAbstractFilePathIO
+    , unpackAFP
+    , packAFP
     )
 import AFP.AbstractFilePath.Internal.Types
     ( AbstractFilePath, PosixFilePath, WindowsFilePath )
 import AFP.OsString
+import AFP.OsString.Internal ( fromChar )
 import AFP.OsString.Internal.Types
 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
@@ -474,7 +481,7 @@ takeAllParents (OsString p) = fmap OsString $ AFP.takeAllParents p
 --   On Posix, \/ is a Drive.
 --
 -- > Windows: splitDrive "/test" == ("","/test")
--- > Windows: splitDrive "C:\\file" == ("C:","file")
+-- > Windows: splitDrive "C:\\file" == ("C:\","file")
 -- > Posix: splitDrive "/test" == ("/","test")
 -- > splitDrive "//test" == ("//","test")
 -- > splitDrive "test/file" == ("","test/file")
@@ -630,28 +637,28 @@ isRelative (OsString x) = AFP.isRelative x
 
 -- | Check if a path is absolute
 --
--- >>> Windows: isAbsolute "C:\\path" == True
--- >>> Windows: isAbsolute "/path" == False
--- >>> Posix: isAbsolute "/path" == True
--- >>> isAbsolute "path" == False
--- >>> isAbsolute "" == False
+-- > Windows: isAbsolute "C:\\path" == True
+-- > Windows: isAbsolute "/path" == False
+-- > Posix: isAbsolute "/path" == True
+-- > isAbsolute "path" == False
+-- > isAbsolute "" == False
 isAbsolute :: AbstractFilePath -> Bool
 isAbsolute (OsString x) = AFP.isAbsolute x
 
 
 -- | Is a FilePath valid, i.e. could you create a file like it?
 --
--- >>> isValid "" == False
--- >>> isValid "\0" == False
--- >>> isValid "/random_path" == True
+-- > isValid "" == False
+-- > isValid "\0" == False
+-- > isValid "/random_path" == True
 isValid :: AbstractFilePath -> Bool
 isValid (OsString filepath) = AFP.isValid filepath
 
 
 -- | Take a FilePath and make it valid; does not change already valid FilePaths.
 --
--- >>> makeValid "" == "_"
--- >>> makeValid "file\0name" == "file_name"
+-- > makeValid "" == "_"
+-- > makeValid "file\0name" == "file_name"
 -- > if isValid p then makeValid p == p else makeValid p /= p
 -- > isValid (makeValid p)
 makeValid :: AbstractFilePath -> AbstractFilePath

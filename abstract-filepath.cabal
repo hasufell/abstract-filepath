@@ -12,6 +12,7 @@ description:
 category:           System
 extra-source-files:
   lib/AFP/AbstractFilePath/Common.hs
+  lib/AFP/OsString/Common.hs
   lib/AFP/AbstractFilePath/Internal/Common.hs
   lib/AFP/AbstractFilePath/Internal.hs-boot
   lib/AFP/AbstractFilePath.hs-boot
@@ -36,6 +37,8 @@ library
     AFP.Data.ByteString.Short.Word16
     AFP.Data.Word16
     AFP.OsString
+    AFP.OsString.Posix
+    AFP.OsString.Windows
     AFP.OsString.Internal
     AFP.OsString.Internal.Types
 

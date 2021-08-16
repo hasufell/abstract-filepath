@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 -- This template expects CPP definitions for:
 --     MODULE_NAME = Posix | Windows
 --     IS_WINDOWS  = False | True
@@ -64,14 +64,14 @@ import Data.Word8
     )
 #endif
 
-import Data.List
-  ( mapAccumL )
 import Control.Arrow
     ( second )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
     ( ShortByteString )
+import Data.List
+    ( mapAccumL )
 import Data.Maybe
     ( isJust )
 import Prelude hiding
