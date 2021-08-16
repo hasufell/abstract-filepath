@@ -5,6 +5,8 @@
 
 module AFP.AbstractFilePath.Internal where
 
+import {-# SOURCE #-} AFP.AbstractFilePath
+    ( isValid )
 import AFP.AbstractFilePath.Internal.Types
 import AFP.OsString.Internal hiding
     ( fromByteString )
@@ -112,7 +114,7 @@ mkAbstractFilePath :: ByteString -> Q Exp
 mkAbstractFilePath bs = 
   case bsToAFP bs of
     Just afp ->
-      if True -- isValid afp -- TODO
+      if isValid afp
       then lift afp
       else error "invalid filepath"
     Nothing -> error "invalid encoding"
@@ -120,8 +122,8 @@ mkAbstractFilePath bs =
 -- | QuasiQuote an 'AbstractFilePath'. This accepts Unicode characters
 -- and encodes as UTF-8 on unix and UTF-16 on windows. Runs 'filepathIsValid'
 -- on the input.
-absfp :: QuasiQuoter
-absfp = qq mkAbstractFilePath
+afp :: QuasiQuoter
+afp = qq mkAbstractFilePath
 
 
 unpackAFP :: AbstractFilePath -> [OsWord]

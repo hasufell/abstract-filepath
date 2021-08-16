@@ -541,9 +541,9 @@ splitDirectories (CTOR x) = fmap CTOR $ C.splitDirectories x
 -- |Get all parents of a path.
 --
 -- >>> takeAllParents "C:\\foo\\bar"
--- ["C:\\foo","C:\"]
+-- ["C:","C:\foo"]
 -- >>> takeAllParents "/abs/def/dod"
--- ["\\abs\def","\\abs\","\\"]
+-- ["\","\abs","\abs\def"]
 -- >>> takeAllParents "/foo"
 -- ["\"]
 -- >>> takeAllParents "/"
@@ -552,7 +552,7 @@ splitDirectories (CTOR x) = fmap CTOR $ C.splitDirectories x
 -- |Get all parents of a path.
 --
 -- >>> takeAllParents "/abs/def/dod"
--- ["/abs/def","/abs","/"]
+-- ["/","/abs","/abs/def"]
 -- >>> takeAllParents "/foo"
 -- ["/"]
 -- >>> takeAllParents "/"
@@ -744,27 +744,27 @@ dropTrailingPathSeparator (CTOR x) = CTOR $ C.dropTrailingPathSeparator x
 -- >>> normalise "/file/./test"
 -- "\file\test"
 -- >>> normalise "/test/file/../bob/fred/"
--- "/test/file/../bob/fred/"
+-- "\test\file\..\bob\fred\"
 -- >>> normalise "../bob/fred/"
--- "../bob/fred/"
+-- "..\bob\fred\"
 -- >>> normalise "./bob/fred/"
--- "bob/fred/"
+-- "bob\fred\"
 -- >>> normalise "./bob////.fred/./...///./..///#."
--- "bob/.fred/.../../#."
+-- "bob\.fred\...\..\#."
 -- >>> normalise "."
 -- "."
 -- >>> normalise "./"
--- "./"
+-- ".\"
 -- >>> normalise "./."
--- "./"
+-- ".\"
 -- >>> normalise "/./"
--- "/"
+-- "\"
 -- >>> normalise "/"
--- "/"
+-- "\"
 -- >>> normalise "bob/fred/."
--- "bob/fred/"
+-- "bob\fred\"
 -- >>> normalise "//home"
--- "/home"
+-- "\\home"
 #else
 -- |Normalise a file.
 --
@@ -834,7 +834,7 @@ normalise (CTOR filepath) = CTOR $ C.normalise filepath
 -- >>> makeRelative "/directory" "/directory/file.ext"
 -- "file.ext"
 -- >>> makeRelative "/Home" "/home/bob"
--- "bob"
+-- "/home/bob"
 -- >>> makeRelative "/home/" "/home/bob/foo/bar"
 -- "bob/foo/bar"
 -- >>> makeRelative "/fred" "bob"
@@ -990,7 +990,7 @@ isSpecialDirectoryEntry (CTOR filepath)
 -- >>> isFileName "\0"
 -- False
 -- >>> isFileName "/random_path"
--- True
+-- False
 #else
 -- | Is the given path a valid filename? This includes
 -- "." and "..".

@@ -10,6 +10,6 @@ main = doctest [ "-ilib"
 #else
                , "lib/AFP/AbstractFilePath/Internal/Posix.hs"
 #endif
-               --, "lib/AFP/AbstractFilePath/Posix.hs"
                , "lib/AFP/AbstractFilePath/Windows.hs"
+               --, "lib/AFP/AbstractFilePath/Posix.hs"
                ]

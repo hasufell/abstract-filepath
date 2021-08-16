@@ -71,7 +71,7 @@ module AFP.AbstractFilePath
   , toAbstractFilePath
   , toAbstractFilePathIO
   , bsToAFP
-  , absfp
+  , afp
 
   -- * Deconstruction
   , fromAbstractFilePath
@@ -145,7 +145,7 @@ module AFP.AbstractFilePath
 where
 
 import AFP.AbstractFilePath.Internal
-    ( absfp
+    ( afp
     , bsToAFP
     , fromAbstractFilePath
     , fromAbstractFilePathIO

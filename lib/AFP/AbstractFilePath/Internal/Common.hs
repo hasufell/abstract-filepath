@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE MultiWayIf #-}
 -- This template expects CPP definitions for:
 --     MODULE_NAME = Posix | Windows
 --     IS_WINDOWS  = False | True
@@ -63,6 +64,8 @@ import Data.Word8
     )
 #endif
 
+import Data.List
+  ( mapAccumL )
 import Control.Arrow
     ( second )
 import Data.ByteString
@@ -172,9 +175,13 @@ searchPathSeparator = if isWindows
   else _colon
 
 
+#ifdef WINDOWS
 -- | Check if a character is the search path separator
 --
+-- prop> \n -> (_chr n == ';') == isSearchPathSeparator n
+#else
 -- prop> \n -> (_chr n == ':') == isSearchPathSeparator n
+#endif
 isSearchPathSeparator :: Word -> Bool
 isSearchPathSeparator = (== searchPathSeparator)
 
@@ -367,17 +374,22 @@ splitDirectories x
 
 
 takeAllParents :: ShortByteString -> [ShortByteString]
-takeAllParents x = fmap normalise $ f drive path ++ [drive | not (BS.null drive)]
-    where
-        (drive, path) = second takeDirectory $ splitDrive x
-
-        f p y
-          | BS.null y = []
-          | let head' = BS.snoc pathSeparator p
-          , otherwise = f (head' `BS.append` a) d ++ [head' `BS.append` a `BS.append` c]
-            where
-                (a,b) = BS.break isPathSeparator y
-                (c,d) = BS.span  isPathSeparator b
+takeAllParents x =
+  let s = splitDirectories x
+  in filterEmptyHead
+       . snd
+       . mapAccumL (\a b -> (if | BS.null a          -> (                                   b, a                         )
+                                | isPathSeparator' a -> (     BS.singleton pathSeparator <> b, BS.singleton pathSeparator)
+                                | otherwise          -> (a <> BS.singleton pathSeparator <> b, a                         )
+                            )
+                   ) mempty
+       $ s
+ where
+  filterEmptyHead :: [ShortByteString] -> [ShortByteString]
+  filterEmptyHead [] = []
+  filterEmptyHead (a:as)
+    | BS.null a = as
+    | otherwise = (a:as)
 
 
 ------------------------
@@ -510,7 +522,6 @@ isBadCharacter x = x >= _nul && x <= 31
       , _greater
       , _colon
       , _quotedbl
-      , _slash
       , _bar
       , _question
       , _asterisk
@@ -561,7 +572,7 @@ makeValid path
 
 isFileName :: ShortByteString -> Bool
 isFileName filepath =
-  not (foldr (\a b -> BS.singleton a `BS.isInfixOf` filepath && b) True pathSeparators) &&
+  not (foldr (\a b -> BS.singleton a `BS.isInfixOf` filepath || b) False pathSeparators) &&
   not (BS.null filepath) &&
   not (_nul `BS.elem` filepath)
 
@@ -583,7 +594,7 @@ hasParentDir filepath =
     predicate f p =
       foldr (\a b -> f a
               `p` filepath || b)
-            True
+            False
             pathSeparators
 
 

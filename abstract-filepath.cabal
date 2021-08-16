@@ -10,8 +10,14 @@ description:
   This is a user-space implementation of the Abstract FilePath Proposal (AFPP) authored by Herbert Valerio Riedel, Neil Mitchell & Michael Snoyman.
 
 category:           System
-extra-source-files: lib/AFP/AbstractFilePath/Internal/Common.hs
-                    lib/AFP/AbstractFilePath/Common.hs
+extra-source-files:
+  lib/AFP/AbstractFilePath/Common.hs
+  lib/AFP/AbstractFilePath/Internal/Common.hs
+  lib/AFP/AbstractFilePath/Internal.hs-boot
+  lib/AFP/AbstractFilePath.hs-boot
+  lib/AFP/OsString/Internal/Types.hs-boot
+  lib/AFP/OsString/Internal.hs-boot
+
 extra-doc-files:    CHANGELOG.md
 
 library
@@ -62,12 +68,11 @@ test-suite abstract-filepath-test
     , QuickCheck         ^>=2.14.2
 
 test-suite doctest
-  type:               exitcode-stdio-1.0
-  main-is:            Doctests.hs
-  hs-source-dirs:     test
-  default-language:   Haskell2010
+  type:             exitcode-stdio-1.0
+  main-is:          Doctests.hs
+  hs-source-dirs:   test
+  default-language: Haskell2010
   build-depends:
-      base               >=4.10    && <5
     , abstract-filepath
+    , base               >=4.10 && <5
     , doctest
-
