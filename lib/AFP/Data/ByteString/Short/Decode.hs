@@ -1,13 +1,12 @@
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Data.ByteString.Short.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf16LE'', decodeUtf8, decodeUtf8With, decodeUtf8') where
+module AFP.Data.ByteString.Short.Decode (decodeUtf16LE, decodeUtf16LEWith, decodeUtf16LE', decodeUtf16LE'', decodeUtf8, decodeUtf8With, decodeUtf8') where
 
 import Data.Bits
     ( (.&.) )
 import Data.ByteString
     ( ByteString )
-import "bytestring" Data.ByteString.Short
+import Data.ByteString.Short
     ( ShortByteString )
 import Data.Text
     ( Text )
@@ -30,7 +29,7 @@ import Data.Word
 
 import Control.Exception
     ( evaluate, try )
-import qualified "bytestring" Data.ByteString.Short as BS
+import qualified Data.ByteString.Short as BS
     ( ShortByteString (..), fromShort, index, length, toShort )
 import qualified Data.Text.Encoding as E
 import qualified Data.Text.Internal.Encoding.Utf16 as U16

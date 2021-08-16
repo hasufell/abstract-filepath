@@ -8,7 +8,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Data.ByteString.Short.Word16 (
+module AFP.Data.ByteString.Short.Word16 (
   -- * Introducing and eliminating 'ShortByteString's
   empty,
   singleton,
@@ -89,12 +89,12 @@ import Prelude hiding
     , take
     )
 
-import Data.ByteString.Short
+import AFP.Data.ByteString.Short
     ( append, intercalate, isInfixOf, isPrefixOf, isSuffixOf, stripSuffix )
-import Data.ByteString.Short.Internal
-import Data.Word16
+import AFP.Data.ByteString.Short.Internal
+import AFP.Data.Word16
 
-import "bytestring" Data.ByteString.Short
+import Data.ByteString.Short
     ( ShortByteString
     , empty
     , fromShort
@@ -106,7 +106,7 @@ import "bytestring" Data.ByteString.Short
     , useAsCString
     , useAsCStringLen
     )
-import "bytestring" Data.ByteString.Short.Internal
+import Data.ByteString.Short.Internal
     ( ShortByteString (SBS), createFromPtr )
 import qualified Data.Foldable as F
 import GHC.Exts

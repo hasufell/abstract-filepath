@@ -2,12 +2,11 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UnboxedTuples #-}
 
-module Data.ByteString.Short
+module AFP.Data.ByteString.Short
   (
 
   -- * Introducing and eliminating 'ShortByteString's
@@ -107,7 +106,8 @@ import Prelude hiding
     , take
     )
 
-import "bytestring" Data.ByteString.Short
+import AFP.Data.ByteString.Short.Internal
+import Data.ByteString.Short
     ( ShortByteString
     , empty
     , fromShort
@@ -123,13 +123,12 @@ import "bytestring" Data.ByteString.Short
     , useAsCStringLen
     )
 import Data.ByteString.Short.Internal
-import "bytestring" Data.ByteString.Short.Internal
     ( ShortByteString (SBS), createFromPtr )
 import qualified Data.Foldable as F
 import Data.Word8
 
-import qualified "bytestring" Data.ByteString.Short as BS
-import qualified "bytestring" Data.ByteString.Short.Internal as BS
+import qualified Data.ByteString.Short as BS
+import qualified Data.ByteString.Short.Internal as BS
 
 
 import Data.ByteString.Internal

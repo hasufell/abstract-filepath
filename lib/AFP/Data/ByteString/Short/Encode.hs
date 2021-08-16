@@ -1,7 +1,7 @@
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Data.ByteString.Short.Encode (encodeUtf8, encodeUtf16LE) where
+module AFP.Data.ByteString.Short.Encode (encodeUtf8, encodeUtf16LE) where
 
 import Data.Bits
     ( shiftR, (.&.) )

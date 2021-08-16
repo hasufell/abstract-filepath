@@ -11,32 +11,45 @@
 --
 -- 1. on windows UTF16 data
 -- 2. on unix UTF8 data
-module OsString
+module AFP.OsString
   (
-  -- * Types
+  -- * String types
     OsString
   , WindowsString
   , PosixString
 
-  -- * Construction
+  -- * String construction
   , toOsString
   , toOsString'
   , fromByteString
   , osstr
+  , packOsString
 
-  -- * Deconstruction
+  -- * String deconstruction
   , fromOsString
   , fromOsString'
+  , unpackOsString
+
+  -- * Word types
+  , OsWord
+  , WindowsWord
+  , PosixWord
+
+  -- * Word construction
+  , fromChar
   )
 where
 
-import OsString.Internal
+import AFP.OsString.Internal
     ( fromByteString
+    , fromChar
     , fromOsString
     , fromOsString'
     , osstr
+    , packOsString
     , toOsString
     , toOsString'
+    , unpackOsString
     )
-import OsString.Internal.Types
-    ( OsString, PosixString, WindowsString )
+import AFP.OsString.Internal.Types
+    ( OsString, OsWord, PosixString, PosixWord, WindowsString, WindowsWord )

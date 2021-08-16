@@ -1,26 +1,18 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 -- This template expects CPP definitions for:
 --     MODULE_NAME = Posix | Windows
 --     IS_WINDOWS  = False | True
 
-module AbstractFilePath.Internal.MODULE_NAME where
+module AFP.AbstractFilePath.Internal.MODULE_NAME where
 
-import Prelude hiding
-    ( Word )
-
-import Control.Arrow
-    ( second )
-import Data.ByteString
-    ( ByteString )
-import "bytestring" Data.ByteString.Short
-    ( ShortByteString )
-import Data.Maybe
-    ( isJust )
+-- doctest
+import AFP.AbstractFilePath.Internal.Types
+    ()
 
 #ifdef WINDOWS
-import qualified Data.ByteString.Short.Word16 as BS
-import Data.Word16
+import qualified AFP.Data.ByteString.Short.Word16 as BS
+import AFP.Data.Word16
     ( isLetter
     , isSpace
     , toLower
@@ -45,7 +37,7 @@ import Data.Word16
 import GHC.Word
     ( Word16 )
 #else
-import qualified Data.ByteString.Short as BS
+import qualified AFP.Data.ByteString.Short as BS
 import Data.Word8
     ( Word8
     , isLetter
@@ -70,6 +62,18 @@ import Data.Word8
     , _underscore
     )
 #endif
+
+import Control.Arrow
+    ( second )
+import Data.ByteString
+    ( ByteString )
+import Data.ByteString.Short
+    ( ShortByteString )
+import Data.Maybe
+    ( isJust )
+import Prelude hiding
+    ( Word )
+
 import Data.String
 
 #ifdef WINDOWS
@@ -78,20 +82,46 @@ type Word = Word16
 type Word = Word8
 #endif
 
+
+#ifdef WINDOWS
 -- $setup
 -- >>> import Data.Char
 -- >>> import Data.Maybe
 -- >>> import Data.Word8
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
--- >>> import AbstractFilePath.Internal.Types (PosixFilePath (..))
+-- >>> import AFP.AbstractFilePath.Internal.Types (PosixFilePath (..))
+-- >>> import AFP.OsString.Internal.Types
+-- >>> import qualified AFP.Data.ByteString.Short.Word16 as BS
+-- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
+-- >>> instance CoArbitrary ShortByteString where coarbitrary = coarbitrary . BS.unpack
+-- >>> instance Arbitrary PosixFilePath where arbitrary = PS <$> arbitrary
+-- >>> instance CoArbitrary PosixFilePath where coarbitrary = coarbitrary . (\(PS fp) -> fp)
+-- >>> import AFP.OsString.Internal.Types (WindowsString (..))
+-- >>> instance Arbitrary ShortByteString where arbitrary = sized $ \n -> choose (0,n) >>= \k -> fmap BS.pack $ vectorOf (if even k then k else k + 1) arbitrary
+-- >>> instance Arbitrary WindowsString where arbitrary = WS <$> arbitrary
+--
+-- >>> let _chr :: Word -> Char; _chr = chr . fromIntegral
+#else
+-- $setup
+-- >>> import Data.Char
+-- >>> import Data.Maybe
+-- >>> import Data.Word8
+-- >>> import Test.QuickCheck
+-- >>> import Control.Applicative
+-- >>> import AFP.AbstractFilePath.Internal.Types (PosixFilePath (..))
+-- >>> import AFP.OsString.Internal.Types
 -- >>> import qualified Data.ByteString.Short as BS
 -- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
 -- >>> instance CoArbitrary ShortByteString where coarbitrary = coarbitrary . BS.unpack
--- >>> instance Arbitrary PosixFilePath where arbitrary = PFP <$> arbitrary
--- >>> instance CoArbitrary PosixFilePath where coarbitrary = coarbitrary . (\(PFP fp) -> fp)
+-- >>> instance Arbitrary PosixFilePath where arbitrary = PS <$> arbitrary
+-- >>> instance CoArbitrary PosixFilePath where coarbitrary = coarbitrary . (\(PS fp) -> fp)
+-- >>> import AFP.OsString.Internal.Types (WindowsString (..))
+-- >>> instance Arbitrary ShortByteString where arbitrary = sized $ \n -> choose (0,n) >>= \k -> fmap BS.pack $ vectorOf (if even k then k else k + 1) arbitrary
+-- >>> instance Arbitrary WindowsString where arbitrary = WS <$> arbitrary
 --
--- >>> let _chr :: Word8 -> Char; _chr = chr . fromIntegral
+-- >>> let _chr :: Word -> Char; _chr = chr . fromIntegral
+#endif
 
 ---------------------------------------------------------------------
 -- Platform Abstraction Methods (private)
@@ -125,12 +155,11 @@ pathSeparators = if isWindows
 --
 -- prop> \n ->  (_chr n == '/') == isPathSeparator n
 isPathSeparator :: Word -> Bool
-isPathSeparator w
-  | w == _slash = True
-  | w == _backslash = isWindows
-  | otherwise = False
+isPathSeparator w = w `elem` pathSeparators
 
-
+-- | Like 'isPathSeparator'', except for 'ShortByteString'.
+--
+-- prop> \n ->  (_chr n == '/') == isPathSeparator' (BS.singleton n)
 isPathSeparator' :: ShortByteString -> Bool
 isPathSeparator' fp =
   BS.length fp == 1 && isPathSeparator (BS.head fp)
@@ -338,11 +367,17 @@ splitDirectories x
 
 
 takeAllParents :: ShortByteString -> [ShortByteString]
-takeAllParents p
-  | isPathSeparator' np = []
-  | otherwise = takeDirectory np : takeAllParents (takeDirectory np)
-  where
-    np = normalise p
+takeAllParents x = fmap normalise $ f drive path ++ [drive | not (BS.null drive)]
+    where
+        (drive, path) = second takeDirectory $ splitDrive x
+
+        f p y
+          | BS.null y = []
+          | let head' = BS.snoc pathSeparator p
+          , otherwise = f (head' `BS.append` a) d ++ [head' `BS.append` a `BS.append` c]
+            where
+                (a,b) = BS.break isPathSeparator y
+                (c,d) = BS.span  isPathSeparator b
 
 
 ------------------------
@@ -547,7 +582,7 @@ hasParentDir filepath =
     pathDoubleDot = BS.pack [_period, _period]
     predicate f p =
       foldr (\a b -> f a
-              `p` filepath && b)
+              `p` filepath || b)
             True
             pathSeparators
 

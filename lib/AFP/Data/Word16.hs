@@ -1,10 +1,10 @@
 {-# LANGUAGE CPP #-}
 
--- | Word16 module to be used with ShortByteString.
+-- | Word16 module AFP.to be used with ShortByteString.
 -- All function assumes that 'Word16' is encoded in UTF16-LE.
 --
 -- Works with Unicode7+ (GHC 7.10+ / Base library 4.8+).
-module Data.Word16 (
+module AFP.Data.Word16 (
   -- * Re-exporting
     Word16
   -- * Character classification

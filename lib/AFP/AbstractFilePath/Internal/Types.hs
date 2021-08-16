@@ -1,9 +1,9 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
-module AbstractFilePath.Internal.Types where
+module AFP.AbstractFilePath.Internal.Types where
 
-import OsString.Internal.Types
+import AFP.OsString.Internal.Types
 
 import Data.ByteString
     ( ByteString )

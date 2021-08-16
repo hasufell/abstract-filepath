@@ -1,16 +1,18 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE TemplateHaskell #-}
-module OsString.Internal.Types where
+module AFP.OsString.Internal.Types where
 
-import {-# SOURCE #-} OsString.Internal
+import {-# SOURCE #-} AFP.OsString.Internal
     ( toOsString )
 
-import Data.ByteString.Short.Decode
+import AFP.Data.ByteString.Short.Decode
     ( decodeUtf16LE, decodeUtf8 )
-import Data.ByteString.Short.Encode
+import AFP.Data.ByteString.Short.Encode
     ( encodeUtf16LE, encodeUtf8 )
+
+import AFP.Data.Word16
+import Data.Word8
 
 import Data.ByteString
     ( ByteString )
@@ -31,7 +33,7 @@ import Language.Haskell.TH.Syntax
 import System.IO.Error
     ( catchIOError )
 
-import qualified "bytestring" Data.ByteString.Short as BS
+import qualified Data.ByteString.Short as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 import qualified GHC.Foreign as GHC
@@ -69,6 +71,17 @@ instance IsString PosixString where
 type PlatformString = WindowsString
 #else
 type PlatformString = PosixString
+#endif
+
+newtype WindowsWord = WW Word16
+  deriving (Eq, Ord, Show)
+newtype PosixWord   = PW Word8
+  deriving (Eq, Ord, Show)
+
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+type PlatformWord = WindowsWord
+#else
+type PlatformWord = PosixWord
 #endif
 
 
@@ -129,3 +142,16 @@ instance Lift OsString where
   liftTyped = TH.unsafeTExpCoerce . TH.lift
 #endif
 
+
+-- | Newtype representing operating system Word with respect to
+-- the encoding. On Windows, this is 'Word16', on POSIX 'Word8'.
+newtype OsWord = OsWord PlatformWord
+  deriving Show
+
+-- | Byte equality of the internal representation.
+instance Eq OsWord where
+  (OsWord a) == (OsWord b) = a == b
+
+-- | Byte ordering of the internal representation.
+instance Ord OsWord where
+  compare (OsWord a) (OsWord b) = compare a b

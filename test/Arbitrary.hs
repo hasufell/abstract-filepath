@@ -1,6 +1,6 @@
 module Arbitrary where
 
-import OsString
+import AFP.OsString
 
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Checkers

@@ -1,0 +1,670 @@
+--- Posix.hs	2021-08-15 13:33:25.056909398 +0200
++++ Windows.hs	2021-08-15 13:33:22.713904449 +0200
+@@ -1,7 +1,8 @@
+ {-# LANGUAGE CPP #-}
+ {-# LANGUAGE PackageImports #-}
+ 
+-module AbstractFilePath.Posix
++
++module AbstractFilePath.Windows
+   (
+   -- * Separator predicates
+     pathSeparator
+@@ -66,15 +67,13 @@
+   , makeValid
+   , isFileName
+   , hasParentDir
+- 
+-  -- * posix specific functions
+-  , hiddenFile
+-  , isSpecialDirectoryEntry
+   )
+ where
+ 
+ 
+-import AbstractFilePath.Internal.Posix
++import AbstractFilePath.Internal.Types
++    ( WindowsFilePath )
++import AbstractFilePath.Internal.Windows
+     ( extSeparator
+     , isExtSeparator
+     , isPathSeparator
+@@ -83,10 +82,8 @@
+     , pathSeparators
+     , searchPathSeparator
+     )
+-import AbstractFilePath.Internal.Types
+-    ( PosixFilePath )
+ import OsString.Internal.Types
+-    ( PosixString (..) )
++    ( WindowsString (..) )
+ 
+ import Control.Arrow
+     ( second )
+@@ -101,9 +98,7 @@
+ import Data.Word8
+     ( Word8, _colon, _nul, _period, _slash, _underscore )
+ 
+-import qualified AbstractFilePath.Internal.Posix as C
+-import qualified Data.ByteString.Short as BS
+-import qualified "bytestring" Data.ByteString.Short as BS
++import qualified AbstractFilePath.Internal.Windows as C
+ 
+ 
+ -- $setup
+@@ -112,12 +107,10 @@
+ -- >>> import Data.Word8
+ -- >>> import Test.QuickCheck
+ -- >>> import Control.Applicative
+--- >>> import AbstractFilePath.Internal.Types (PosixFilePath (..))
+--- >>> import qualified Data.ByteString.Short as BS
+--- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
+--- >>> instance CoArbitrary ShortByteString where coarbitrary = coarbitrary . BS.unpack
+--- >>> instance Arbitrary PosixFilePath where arbitrary = PS <$> arbitrary
+--- >>> instance CoArbitrary PosixFilePath where coarbitrary = coarbitrary . (\(PS fp) -> fp)
++-- >>> import AbstractFilePath.Internal.Types (WindowsString (..))
++-- >>> import qualified AbstractFilePath.ShortByteString.Word16 as BS
++-- >>> instance Arbitrary ShortByteString where arbitrary = sized $ \n -> choose (0,n) >>= \k -> fmap BS.pack $ vectorOf (if even k then k else k + 1) arbitrary
++-- >>> instance Arbitrary WindowsString where arbitrary = WS <$> arbitrary
+ --
+ -- >>> let _chr :: Word8 -> Char; _chr = chr . fromIntegral
+ 
+@@ -128,27 +121,26 @@
+ -- $PATH methods
+ 
+ 
+--- | Take a ShortByteString, split it on the 'searchPathSeparator'.
++-- | Take a WindowsString, split it on the 'searchPathSeparator'.
+ -- Blank items are converted to @.@.
+ --
+--- Follows the recommendations in
+--- <http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html>
+---
+--- >>> splitSearchPath "File1:File2:File3"
++-- >>> splitSearchPath "File1;File2;File3"
++-- ["File1","File2","File3"]
++-- >>> splitSearchPath "File1;;File2;File3"
++-- ["File1","File2","File3"]
++-- >>> splitSearchPath "File1;\"File2\";File3"
+ -- ["File1","File2","File3"]
+--- >>> splitSearchPath "File1::File2:File3"
+--- ["File1",".","File2","File3"]
+ -- >>> splitSearchPath ""
+--- ["."]
+-splitSearchPath :: ShortByteString -> [PosixFilePath]
+-splitSearchPath = fmap PS . C.splitSearchPath
++-- []
++splitSearchPath :: WindowsString -> [WindowsFilePath]
++splitSearchPath (WS s) = fmap WS . C.splitSearchPath $ s
+ 
+ 
+ 
+ ------------------------
+ -- Extension functions
+ 
+--- | Split a 'PosixFilePath' into a path+filename and extension
++-- | Split a 'WindowsFilePath' into a path+filename and extension
+ --
+ -- >>> splitExtension "file.exe"
+ -- ("file",".exe")
+@@ -159,12 +151,12 @@
+ -- >>> splitExtension ".exe"
+ -- (".exe","")
+ --
+--- prop> \path -> PS (uncurry (\(PS a) b -> BS.append a b) (splitExtension path)) == path
+-splitExtension :: PosixFilePath -> (PosixFilePath, ShortByteString)
+-splitExtension (PS x) = first PS $ C.splitExtension x
++-- prop> \path -> WS (uncurry (\a b -> BS.append (unWFP a) (unWFP b)) (splitExtension path)) == path
++splitExtension :: WindowsFilePath -> (WindowsFilePath, WindowsString)
++splitExtension (WS x) = bimap WS WS $ C.splitExtension x
+ 
+ 
+--- | Get the file extension from a 'PosixFilePath'
++-- | Get the file extension from a 'WindowsFilePath'
+ --
+ -- >>> takeExtension "file.exe"
+ -- ".exe"
+@@ -172,18 +164,18 @@
+ -- ""
+ -- >>> takeExtension "/path/file.tar.gz"
+ -- ".gz"
+-takeExtension :: PosixFilePath -> ShortByteString
+-takeExtension (PS x) = C.takeExtension x
++takeExtension :: WindowsFilePath -> WindowsString
++takeExtension (WS x) = WS $ C.takeExtension x
+ 
+ 
+ -- | Change a file's extension
+ --
+ -- prop> \path -> let ext = takeExtension path in replaceExtension path ext == path
+-replaceExtension :: PosixFilePath -> ShortByteString -> PosixFilePath
+-replaceExtension (PS path) ext = PS (C.replaceExtension path ext)
++replaceExtension :: WindowsFilePath -> WindowsString -> WindowsFilePath
++replaceExtension (WS path) (WS ext) = WS (C.replaceExtension path ext)
+ 
+ 
+--- | Drop the final extension from a 'PosixFilePath'
++-- | Drop the final extension from a 'WindowsFilePath'
+ --
+ -- >>> dropExtension ".exe"
+ -- ".exe"
+@@ -193,11 +185,11 @@
+ -- "file"
+ -- >>> dropExtension "/path/file.tar.gz"
+ -- "/path/file.tar"
+-dropExtension :: PosixFilePath -> PosixFilePath
+-dropExtension (PS x) = PS $ C.dropExtension x
++dropExtension :: WindowsFilePath -> WindowsFilePath
++dropExtension (WS x) = WS $ C.dropExtension x
+ 
+ 
+--- | Add an extension to a 'PosixFilePath'
++-- | Add an extension to a 'WindowsFilePath'
+ --
+ -- >>> addExtension "file" ".exe"
+ -- "file.exe"
+@@ -205,11 +197,11 @@
+ -- "file.tar.gz"
+ -- >>> addExtension "/path/" ".ext"
+ -- "/path/.ext"
+-addExtension :: PosixFilePath -> ShortByteString -> PosixFilePath
+-addExtension (PS bs) ext = PS $ C.addExtension bs ext
++addExtension :: WindowsFilePath -> WindowsString -> WindowsFilePath
++addExtension (WS bs) (WS ext) = WS $ C.addExtension bs ext
+ 
+ 
+--- | Check if a 'PosixFilePath' has an extension
++-- | Check if a 'WindowsFilePath' has an extension
+ --
+ -- >>> hasExtension "file"
+ -- False
+@@ -217,39 +209,39 @@
+ -- True
+ -- >>> hasExtension "/path.part1/"
+ -- False
+-hasExtension :: PosixFilePath -> Bool
+-hasExtension (PS x) = C.hasExtension x
++hasExtension :: WindowsFilePath -> Bool
++hasExtension (WS x) = C.hasExtension x
+ 
+ 
+ -- | Operator version of 'addExtension'
+-(<.>) :: PosixFilePath -> ShortByteString -> PosixFilePath
++(<.>) :: WindowsFilePath -> WindowsString -> WindowsFilePath
+ (<.>) = addExtension
+ 
+ 
+--- | Split a 'PosixFilePath' on the first extension.
++-- | Split a 'WindowsFilePath' on the first extension.
+ --
+ -- >>> splitExtensions "/path/file.tar.gz"
+ -- ("/path/file",".tar.gz")
+ --
+ -- prop> \path -> uncurry addExtension (splitExtensions path) == path
+-splitExtensions :: PosixFilePath -> (PosixFilePath, ShortByteString)
+-splitExtensions (PS x) = first PS $  C.splitExtensions x
++splitExtensions :: WindowsFilePath -> (WindowsFilePath, WindowsString)
++splitExtensions (WS x) = bimap WS WS $  C.splitExtensions x
+ 
+ 
+--- | Remove all extensions from a 'PosixFilePath'
++-- | Remove all extensions from a 'WindowsFilePath'
+ --
+ -- >>> dropExtensions "/path/file.tar.gz"
+ -- "/path/file"
+-dropExtensions :: PosixFilePath -> PosixFilePath
+-dropExtensions (PS x) = PS $ C.dropExtensions x
++dropExtensions :: WindowsFilePath -> WindowsFilePath
++dropExtensions (WS x) = WS $ C.dropExtensions x
+ 
+ 
+--- | Take all extensions from a 'PosixFilePath'
++-- | Take all extensions from a 'WindowsFilePath'
+ --
+ -- >>> takeExtensions "/path/file.tar.gz"
+ -- ".tar.gz"
+-takeExtensions :: PosixFilePath -> ShortByteString
+-takeExtensions (PS x) = C.takeExtensions x
++takeExtensions :: WindowsFilePath -> WindowsString
++takeExtensions (WS x) = WS $ C.takeExtensions x
+ 
+ 
+ -- | Drop the given extension from a FilePath, and the @\".\"@ preceding it.
+@@ -275,26 +267,26 @@
+ -- prop> \path -> stripExtension "" path == Just path
+ -- prop> \path -> dropExtension path  == fromJust (stripExtension (takeExtension path) path)
+ -- prop> \path -> dropExtensions path == fromJust (stripExtension (takeExtensions path) path)
+-stripExtension :: ShortByteString -> PosixFilePath -> Maybe PosixFilePath
+-stripExtension bs (PS x) = fmap PS $ C.stripExtension bs x
++stripExtension :: WindowsString -> WindowsFilePath -> Maybe WindowsFilePath
++stripExtension (WS bs) (WS x) = fmap WS $ C.stripExtension bs x
+ 
+ 
+ ------------------------
+ -- Filename/directory functions
+ 
+ 
+--- | Split a 'PosixFilePath' into (path,file).  'combine' is the inverse
++-- | Split a 'WindowsFilePath' into (path,file).  'combine' is the inverse
+ --
+--- >>> splitFileName "path/file.txt"
+--- ("path/","file.txt")
+--- >>> splitFileName "path/"
+--- ("path/","")
++-- >>> splitFileName "path\\file.txt"
++-- ("path\","file.txt")
++-- >>> splitFileName "path\\"
++-- ("path\","")
+ -- >>> splitFileName "file.txt"
+--- ("./","file.txt")
++-- (".\","file.txt")
+ --
+--- prop> \path -> uncurry combine (splitFileName path) == path || fst (splitFileName path) == "./"
+-splitFileName :: PosixFilePath -> (PosixFilePath, PosixFilePath)
+-splitFileName (PS x) = bimap PS PS $ C.splitFileName x
++-- prop> \path -> uncurry combine (splitFileName path) == path || fst (splitFileName path) == ".\\"
++splitFileName :: WindowsFilePath -> (WindowsFilePath, WindowsFilePath)
++splitFileName (WS x) = bimap WS WS $ C.splitFileName x
+ 
+ 
+ -- | Get the file name
+@@ -303,25 +295,25 @@
+ -- "file.txt"
+ -- >>> takeFileName "path/"
+ -- ""
+-takeFileName :: PosixFilePath -> PosixFilePath
+-takeFileName (PS x) = PS $ C.takeFileName x
++takeFileName :: WindowsFilePath -> WindowsFilePath
++takeFileName (WS x) = WS $ C.takeFileName x
+ 
+ 
+ -- | Change the file name
+ --
+--- prop> \path -> let (PS fn) = takeFileName path in replaceFileName path fn == path
+-replaceFileName :: PosixFilePath -> ShortByteString -> PosixFilePath
+-replaceFileName (PS x) y = PS $ C.replaceFileName x y
++-- prop> \path -> let fn = takeFileName path in replaceFileName path fn == path
++replaceFileName :: WindowsFilePath -> WindowsString -> WindowsFilePath
++replaceFileName (WS x) (WS y) = WS $ C.replaceFileName x y
+ 
+ 
+ -- | Drop the file name
+ --
+--- >>> dropFileName "path/file.txt"
+--- "path/"
++-- >>> dropFileName "path\\file.txt"
++-- "path\"
+ -- >>> dropFileName "file.txt"
+--- "./"
+-dropFileName :: PosixFilePath -> PosixFilePath
+-dropFileName (PS x) = PS $ C.dropFileName x
++-- ".\"
++dropFileName :: WindowsFilePath -> WindowsFilePath
++dropFileName (WS x) = WS $ C.dropFileName x
+ 
+ 
+ -- | Get the file name, without a trailing extension
+@@ -330,8 +322,8 @@
+ -- "file.tar"
+ -- >>> takeBaseName ""
+ -- ""
+-takeBaseName :: PosixFilePath -> PosixFilePath
+-takeBaseName (PS x) = PS $ C.takeBaseName x
++takeBaseName :: WindowsFilePath -> WindowsFilePath
++takeBaseName (WS x) = WS $ C.takeBaseName x
+ 
+ 
+ -- | Change the base name
+@@ -339,9 +331,9 @@
+ -- >>> replaceBaseName "path/file.tar.gz" "bob"
+ -- "path/bob.gz"
+ --
+--- prop> \path -> let (PS baseName) = takeBaseName path in replaceBaseName path baseName == path
+-replaceBaseName :: PosixFilePath -> ShortByteString -> PosixFilePath
+-replaceBaseName (PS path) name = PS $ C.replaceBaseName path name
++-- prop> \path -> let baseName = takeBaseName path in replaceBaseName path baseName == path
++replaceBaseName :: WindowsFilePath -> WindowsString -> WindowsFilePath
++replaceBaseName (WS path) (WS name) = WS $ C.replaceBaseName path name
+ 
+ 
+ -- | Get the directory, moving up one level if it's already a directory
+@@ -354,15 +346,15 @@
+ -- "/path/to"
+ -- >>> takeDirectory "/path/to"
+ -- "/path"
+-takeDirectory :: PosixFilePath -> PosixFilePath
+-takeDirectory (PS x) = PS $ C.takeDirectory x
++takeDirectory :: WindowsFilePath -> WindowsFilePath
++takeDirectory (WS x) = WS $ C.takeDirectory x
+ 
+ 
+--- | Change the directory component of a 'PosixFilePath'
++-- | Change the directory component of a 'WindowsFilePath'
+ --
+ -- prop> \path -> replaceDirectory path (takeDirectory path) `equalFilePath` path || takeDirectory path == "."
+-replaceDirectory :: PosixFilePath -> PosixFilePath -> PosixFilePath
+-replaceDirectory (PS file) (PS dir) = PS $ C.replaceDirectory file dir
++replaceDirectory :: WindowsFilePath -> WindowsFilePath -> WindowsFilePath
++replaceDirectory (WS file) (WS dir) = WS $ C.replaceDirectory file dir
+ 
+ 
+ -- | Join two paths together. If the second path is absolute, then returns it, ignoring
+@@ -374,12 +366,12 @@
+ -- "/path/to/file"
+ -- >>> combine "file" "/absolute/path"
+ -- "/absolute/path"
+-combine :: PosixFilePath -> PosixFilePath -> PosixFilePath
+-combine (PS a) (PS b) = PS $ C.combine a b
++combine :: WindowsFilePath -> WindowsFilePath -> WindowsFilePath
++combine (WS a) (WS b) = WS $ C.combine a b
+ 
+ 
+ -- | Operator version of combine
+-(</>) :: PosixFilePath -> PosixFilePath -> PosixFilePath
++(</>) :: WindowsFilePath -> WindowsFilePath -> WindowsFilePath
+ (</>) = combine
+ 
+ -- | Split a path into a list of components:
+@@ -387,9 +379,9 @@
+ -- >>> splitPath "/path/to/file.txt"
+ -- ["/","path/","to/","file.txt"]
+ --
+--- prop> \path -> PS (BS.concat (fmap (\(PS fp) -> fp) (splitPath path))) == path
+-splitPath :: PosixFilePath -> [PosixFilePath]
+-splitPath (PS bs) = fmap PS $ C.splitPath bs
++-- prop> \path -> WS (BS.concat (fmap (\(WS fp) -> fp) (splitPath path))) == path
++splitPath :: WindowsFilePath -> [WindowsFilePath]
++splitPath (WS bs) = fmap WS $ C.splitPath bs
+ 
+ 
+ -- | Join a split path back together
+@@ -397,9 +389,9 @@
+ -- prop> \path -> joinPath (splitPath path) == path
+ --
+ -- >>> joinPath ["path","to","file.txt"]
+--- "path/to/file.txt"
+-joinPath :: [PosixFilePath] -> PosixFilePath
+-joinPath = foldr (</>) (PS mempty)
++-- WS "path/to/file.txt"
++joinPath :: [WindowsFilePath] -> WindowsFilePath
++joinPath = foldr (</>) (WS mempty)
+ 
+ 
+ -- | Like 'splitPath', but without trailing slashes
+@@ -412,8 +404,8 @@
+ -- ["/"]
+ -- >>> splitDirectories ""
+ -- []
+-splitDirectories :: PosixFilePath -> [PosixFilePath]
+-splitDirectories (PS x) = fmap PS $ C.splitDirectories x
++splitDirectories :: WindowsFilePath -> [WindowsFilePath]
++splitDirectories (WS x) = fmap WS $ C.splitDirectories x
+ 
+ 
+ -- |Get all parents of a path.
+@@ -424,8 +416,8 @@
+ -- ["/"]
+ -- >>> takeAllParents "/"
+ -- []
+-takeAllParents :: PosixFilePath -> [PosixFilePath]
+-takeAllParents (PS p) = fmap PS $ C.takeAllParents p
++takeAllParents :: WindowsFilePath -> [WindowsFilePath]
++takeAllParents (WS p) = fmap WS $ C.takeAllParents p
+ 
+ 
+ ------------------------
+@@ -444,22 +436,22 @@
+ -- ("","file")
+ --
+ -- prop> \x -> uncurry (<>) (splitDrive x) == x
+-splitDrive :: PosixFilePath -> (PosixFilePath, PosixFilePath)
+-splitDrive (PS p) = bimap PS PS $ C.splitDrive p
++splitDrive :: WindowsFilePath -> (WindowsFilePath, WindowsFilePath)
++splitDrive (WS p) = bimap WS WS $ C.splitDrive p
+ 
+ 
+ -- | Join a drive and the rest of the path.
+ --
+ -- prop> \x -> uncurry joinDrive (splitDrive x) == x
+-joinDrive :: PosixFilePath -> PosixFilePath -> PosixFilePath
+-joinDrive (PS a) (PS b) = PS $ C.joinDrive a b
++joinDrive :: WindowsFilePath -> WindowsFilePath -> WindowsFilePath
++joinDrive (WS a) (WS b) = WS $ C.joinDrive a b
+ 
+ 
+ -- | Get the drive from a filepath.
+ --
+ -- prop> \x -> takeDrive x == fst (splitDrive x)
+-takeDrive :: PosixFilePath -> PosixFilePath
+-takeDrive (PS x) = PS $ C.takeDrive x
++takeDrive :: WindowsFilePath -> WindowsFilePath
++takeDrive (WS x) = WS $ C.takeDrive x
+ 
+ 
+ -- | Does a path have a drive.
+@@ -469,16 +461,16 @@
+ -- >>> hasDrive "foo"
+ -- False
+ --
+--- prop> \x -> not (hasDrive x) == BS.null ((\(PS x) -> x) $ takeDrive x)
+-hasDrive :: PosixFilePath -> Bool
+-hasDrive (PS x) = C.hasDrive x
++-- prop> \x -> not (hasDrive x) == BS.null ((\(WS x) -> x) $ takeDrive x)
++hasDrive :: WindowsFilePath -> Bool
++hasDrive (WS x) = C.hasDrive x
+ 
+ 
+ -- | Delete the drive, if it exists.
+ --
+ -- prop> \x -> dropDrive x == snd (splitDrive x)
+-dropDrive :: PosixFilePath -> PosixFilePath
+-dropDrive (PS x) = PS $ C.dropDrive x
++dropDrive :: WindowsFilePath -> WindowsFilePath
++dropDrive (WS x) = WS $ C.dropDrive x
+ 
+ 
+ -- | Is an element a drive
+@@ -487,14 +479,14 @@
+ -- True
+ -- >>> isDrive "/foo"
+ -- False
+-isDrive :: PosixFilePath -> Bool
+-isDrive (PS x) = C.isDrive x
++isDrive :: WindowsFilePath -> Bool
++isDrive (WS x) = C.isDrive x
+ 
+ 
+ ------------------------
+ -- Trailing slash functions
+ 
+--- | Check if the last character of a 'PosixFilePath' is '/'.
++-- | Check if the last character of a 'WindowsFilePath' is '/'.
+ --
+ -- >>> hasTrailingPathSeparator "/path/"
+ -- True
+@@ -502,8 +494,8 @@
+ -- True
+ -- >>> hasTrailingPathSeparator "/path"
+ -- False
+-hasTrailingPathSeparator :: PosixFilePath -> Bool
+-hasTrailingPathSeparator (PS x) = C.hasTrailingPathSeparator x
++hasTrailingPathSeparator :: WindowsFilePath -> Bool
++hasTrailingPathSeparator (WS x) = C.hasTrailingPathSeparator x
+ 
+ 
+ -- | Add a trailing path separator.
+@@ -514,8 +506,8 @@
+ -- "/path/"
+ -- >>> addTrailingPathSeparator "/"
+ -- "/"
+-addTrailingPathSeparator :: PosixFilePath -> PosixFilePath
+-addTrailingPathSeparator (PS bs) = PS $ C.addTrailingPathSeparator bs
++addTrailingPathSeparator :: WindowsFilePath -> WindowsFilePath
++addTrailingPathSeparator (WS bs) = WS $ C.addTrailingPathSeparator bs
+ 
+ 
+ -- | Remove a trailing path separator
+@@ -528,8 +520,8 @@
+ -- "/"
+ -- >>> dropTrailingPathSeparator "//"
+ -- "/"
+-dropTrailingPathSeparator :: PosixFilePath -> PosixFilePath
+-dropTrailingPathSeparator (PS x) = PS $ C.dropTrailingPathSeparator x
++dropTrailingPathSeparator :: WindowsFilePath -> WindowsFilePath
++dropTrailingPathSeparator (WS x) = WS $ C.dropTrailingPathSeparator x
+ 
+ 
+ 
+@@ -540,7 +532,7 @@
+ -- |Normalise a file.
+ --
+ -- >>> normalise "/file/\\test////"
+--- "/file/\test/"
++-- "/file/\\test/"
+ -- >>> normalise "/file/./test"
+ -- "/file/test"
+ -- >>> normalise "/test/file/../bob/fred/"
+@@ -565,8 +557,8 @@
+ -- "bob/fred/"
+ -- >>> normalise "//home"
+ -- "/home"
+-normalise :: PosixFilePath -> PosixFilePath
+-normalise (PS filepath) = PS $ C.normalise filepath
++normalise :: WindowsFilePath -> WindowsFilePath
++normalise (WS filepath) = WS $ C.normalise filepath
+ 
+ 
+ -- | Contract a filename, based on a relative path. Note that the resulting
+@@ -593,8 +585,8 @@
+ -- prop> \p -> makeRelative p p == "."
+ -- prop> \p -> makeRelative (takeDirectory p) p `equalFilePath` takeFileName p
+ -- prop \x y -> equalFilePath x y || (isRelative x && makeRelative y x == x) || equalFilePath (y </> makeRelative y x) x
+-makeRelative :: PosixFilePath -> PosixFilePath -> PosixFilePath
+-makeRelative (PS root) (PS path) = PS $ C.makeRelative root path
++makeRelative :: WindowsFilePath -> WindowsFilePath -> WindowsFilePath
++makeRelative (WS root) (WS path) = WS $ C.makeRelative root path
+ 
+ 
+ -- |Equality of two filepaths. The filepaths are normalised
+@@ -616,15 +608,15 @@
+ -- False
+ --
+ -- prop> \p -> equalFilePath p p
+-equalFilePath :: PosixFilePath -> PosixFilePath -> Bool
+-equalFilePath (PS p1) (PS p2) = C.equalFilePath p1 p2
++equalFilePath :: WindowsFilePath -> WindowsFilePath -> Bool
++equalFilePath (WS p1) (WS p2) = C.equalFilePath p1 p2
+ 
+ 
+ -- | Check if a path is relative
+ --
+ -- prop> \path -> isRelative path /= isAbsolute path
+-isRelative :: PosixFilePath -> Bool
+-isRelative (PS x) = C.isRelative x
++isRelative :: WindowsFilePath -> Bool
++isRelative (WS x) = C.isRelative x
+ 
+ 
+ -- | Check if a path is absolute
+@@ -635,8 +627,8 @@
+ -- False
+ -- >>> isAbsolute ""
+ -- False
+-isAbsolute :: PosixFilePath -> Bool
+-isAbsolute (PS x) = C.isAbsolute x
++isAbsolute :: WindowsFilePath -> Bool
++isAbsolute (WS x) = C.isAbsolute x
+ 
+ 
+ -- | Is a FilePath valid, i.e. could you create a file like it?
+@@ -647,8 +639,8 @@
+ -- False
+ -- >>> isValid "/random_ path:*"
+ -- True
+-isValid :: PosixFilePath -> Bool
+-isValid (PS filepath) = C.isValid filepath
++isValid :: WindowsFilePath -> Bool
++isValid (WS filepath) = C.isValid filepath
+ 
+ 
+ -- | Take a FilePath and make it valid; does not change already valid FilePaths.
+@@ -660,27 +652,10 @@
+ --
+ -- prop> \p -> if isValid p then makeValid p == p else makeValid p /= p
+ -- prop> \p -> isValid (makeValid p)
+-makeValid :: PosixFilePath -> PosixFilePath
+-makeValid (PS path) = PS $ C.makeValid path
++makeValid :: WindowsFilePath -> WindowsFilePath
++makeValid (WS path) = WS $ C.makeValid path
+ 
+ 
+--- | Whether the filename is a special directory entry
+--- (. and ..). Does not normalise filepaths.
+---
+--- This is only defined for POSIX.
+---
+--- >>> isSpecialDirectoryEntry "."
+--- True
+--- >>> isSpecialDirectoryEntry ".."
+--- True
+--- >>> isSpecialDirectoryEntry "/random_ path:*"
+--- False
+-isSpecialDirectoryEntry :: PosixFilePath -> Bool
+-isSpecialDirectoryEntry (PS filepath)
+-  | BS.pack [_period, _period] == filepath = True
+-  | BS.pack [_period] == filepath          = True
+-  | otherwise                              = False
+-
+ -- | Is the given path a valid filename? This includes
+ -- "." and "..".
+ --
+@@ -696,8 +671,8 @@
+ -- False
+ -- >>> isFileName "/random_ path:*"
+ -- False
+-isFileName :: PosixFilePath -> Bool
+-isFileName (PS filepath) = C.isFileName filepath
++isFileName :: WindowsFilePath -> Bool
++isFileName (WS filepath) = C.isFileName filepath
+ 
+ 
+ -- | Check if the filepath has any parent directories in it.
+@@ -716,36 +691,7 @@
+ -- False
+ -- >>> hasParentDir ".."
+ -- False
+-hasParentDir :: PosixFilePath -> Bool
+-hasParentDir (PS filepath) = C.hasParentDir filepath
+-
++hasParentDir :: WindowsFilePath -> Bool
++hasParentDir (WS filepath) = C.hasParentDir filepath
+ 
+--- | Whether the file is a hidden file.
+---
+--- This is only defined on POSIX.
+---
+--- >>> hiddenFile ".foo"
+--- True
+--- >>> hiddenFile "..foo.bar"
+--- True
+--- >>> hiddenFile "some/path/.bar"
+--- True
+--- >>> hiddenFile "..."
+--- True
+--- >>> hiddenFile "dod.bar"
+--- False
+--- >>> hiddenFile "."
+--- False
+--- >>> hiddenFile ".."
+--- False
+--- >>> hiddenFile ""
+--- False
+-hiddenFile :: PosixFilePath -> Bool
+-hiddenFile (PS fp)
+-  | fn == BS.pack [_period, _period] = False
+-  | fn == BS.pack [_period]          = False
+-  | otherwise                        = BS.pack [C.extSeparator]
+-                                         `BS.isPrefixOf` fn
+-  where
+-    fn = C.takeFileName fp
+ 

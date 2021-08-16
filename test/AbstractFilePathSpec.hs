@@ -2,10 +2,10 @@
 
 module AbstractFilePathSpec where
 
-import AbstractFilePath
-import Data.ByteString.Short.Decode
+import AFP.AbstractFilePath
+import AFP.Data.ByteString.Short.Decode
     ( decodeUtf16LE, decodeUtf8 )
-import Data.ByteString.Short.Encode
+import AFP.Data.ByteString.Short.Encode
     ( encodeUtf16LE, encodeUtf8 )
 
 import Arbitrary

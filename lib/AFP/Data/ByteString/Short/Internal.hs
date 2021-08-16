@@ -6,7 +6,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UnboxedTuples #-}
 
-module Data.ByteString.Short.Internal where
+module AFP.Data.ByteString.Short.Internal where
 
 import "bytestring" Data.ByteString.Short
     ( ShortByteString )
