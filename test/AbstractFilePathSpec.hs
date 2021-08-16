@@ -3,6 +3,7 @@
 module AbstractFilePathSpec where
 
 import AFP.AbstractFilePath
+import AFP.OsString.Internal.Types
 import AFP.Data.ByteString.Short.Decode
     ( decodeUtf16LE, decodeUtf8 )
 import AFP.Data.ByteString.Short.Encode
@@ -31,3 +32,15 @@ spec = do
 
   testBatch (ord (\(a :: AbstractFilePath) -> pure a))
   testBatch (monoid (undefined :: AbstractFilePath))
+
+  testBatch (ord (\(a :: OsString) -> pure a))
+  testBatch (monoid (undefined :: OsString))
+
+  testBatch (ord (\(a :: WindowsString) -> pure a))
+  testBatch (monoid (undefined :: WindowsString))
+
+  testBatch (ord (\(a :: PosixString) -> pure a))
+  testBatch (monoid (undefined :: PosixString))
+
+  testBatch (ord (\(a :: PlatformString) -> pure a))
+  testBatch (monoid (undefined :: PlatformString))
