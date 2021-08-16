@@ -6,10 +6,10 @@
 module AFP.AbstractFilePath.Internal where
 
 import AFP.AbstractFilePath.Internal.Types
-import AFP.OsString.Internal.Types
 import AFP.OsString.Internal hiding
     ( fromByteString )
 import qualified AFP.OsString.Internal as OS
+import AFP.OsString.Internal.Types
 
 import Control.Exception
     ( throwIO )

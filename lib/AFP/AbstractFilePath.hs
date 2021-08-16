@@ -144,17 +144,17 @@ module AFP.AbstractFilePath
   )
 where
 
-import AFP.OsString
 import AFP.AbstractFilePath.Internal
     ( absfp
+    , bsToAFP
     , fromAbstractFilePath
     , fromAbstractFilePathIO
-    , bsToAFP
     , toAbstractFilePath
     , toAbstractFilePathIO
     )
 import AFP.AbstractFilePath.Internal.Types
     ( AbstractFilePath, PosixFilePath, WindowsFilePath )
+import AFP.OsString
 import AFP.OsString.Internal.Types
 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
