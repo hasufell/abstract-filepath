@@ -50,14 +50,14 @@
 --    of the filename.
 -- 2. When interpreting OS returned filenames consider that these might not be UTF8 on /unix/
 --    or at worst don't have an ASCII compatible encoding. Some strategies here involve looking
---    up the current locale and using that for decoding ('fromAbstractFilePath'' does this).
+--    up the current locale and using that for decoding ('fromAbstractFilePathIO' does this).
 --    Otherwise it can be reasonable to assume UTF8 on unix ('fromAbstractFilePath' does that) if your application specifically
 --    mentions that it requires a UTF8 compatible system. These things should be documented.
 -- 3. When dealing with user input (e.g. on the command line) on /unix/ as e.g. @String@ the input
 --    encoding is lost. The output encoding (e.g. how we write a filename to disk) can then
 --    either follow the current locale again ('toAbstractFilePath'') or a fixed encoding
 --    ('toAbstractFilePath'). The decision should be clearly documented. If the input is in the
---    form of a @ByteString@, then 'fromByteString' may be of interest, unless the input needs further
+--    form of a @ByteString@, then 'bsToAFP' may be of interest, unless the input needs further
 --    interpretation.
 
 module AFP.AbstractFilePath
@@ -69,13 +69,13 @@ module AFP.AbstractFilePath
 
   -- * Construction
   , toAbstractFilePath
-  , toAbstractFilePath'
-  , fromByteString
+  , toAbstractFilePathIO
+  , bsToAFP
   , absfp
 
   -- * Deconstruction
   , fromAbstractFilePath
-  , fromAbstractFilePath'
+  , fromAbstractFilePathIO
 
   -- * Separator predicates
   , pathSeparator
@@ -140,16 +140,18 @@ module AFP.AbstractFilePath
   , makeValid
   , isFileName
   , hasParentDir
+  , module AFP.OsString
   )
 where
 
+import AFP.OsString
 import AFP.AbstractFilePath.Internal
     ( absfp
     , fromAbstractFilePath
-    , fromAbstractFilePath'
-    , fromByteString
+    , fromAbstractFilePathIO
+    , bsToAFP
     , toAbstractFilePath
-    , toAbstractFilePath'
+    , toAbstractFilePathIO
     )
 import AFP.AbstractFilePath.Internal.Types
     ( AbstractFilePath, PosixFilePath, WindowsFilePath )

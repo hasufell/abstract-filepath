@@ -82,16 +82,16 @@ toOsString = OsString . WS . encodeUtf16LE
 toOsString = OsString . PS . encodeUtf8
 #endif
 
--- | Like 'toAbstractFilePath', except on unix this uses the current
+-- | Like 'toOsString', except on unix this uses the current
 -- locale for encoding instead of always UTF8.
 --
 -- Looking up the locale requires IO. If you're not worried about calls
 -- to 'setFileSystemEncoding', then 'unsafePerformIO' may be feasible.
-toOsString' :: String -> IO OsString
+toOsStringIO :: String -> IO OsString
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-toOsString' = OsString . WS . encodeUtf16LE
+toOsStringIO = OsString . WS . encodeUtf16LE
 #else
-toOsString' str = do
+toOsStringIO str = do
   enc <- getFileSystemEncoding
   cstr <- GHC.newCString enc str
   OsString . PS <$> BSP.packCString cstr
@@ -120,11 +120,11 @@ fromOsString (OsString (PS ba)) = either throwM pure $ decodeUtf8' ba
 -- to 'setFileSystemEncoding', then 'unsafePerformIO' may be feasible.
 --
 -- Throws 'UnicodeException' if decoding fails.
-fromOsString' :: OsString -> IO String
+fromOsStringIO :: OsString -> IO String
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromOsString' (OsString (WS ba)) = either throwIO pure $ decodeUtf16LE' ba
+fromOsStringIO (OsString (WS ba)) = either throwIO pure $ decodeUtf16LE' ba
 #else
-fromOsString' (OsString (PS ba)) = flip catchIOError (\_ -> throwIO (DecodeError "fromAbstractFilePath' failed" Nothing))
+fromOsStringIO (OsString (PS ba)) = flip catchIOError (\_ -> throwIO (DecodeError "fromAbstractFilePath' failed" Nothing))
   $ BSP.useAsCString ba $ \fp -> getFileSystemEncoding >>= \enc -> GHC.peekCString enc fp
 #endif
 
@@ -134,14 +134,14 @@ fromOsString' (OsString (PS ba)) = flip catchIOError (\_ -> throwIO (DecodeError
 -- On windows, this ensures valid UTF16, on unix it is passed unchanged/unchecked.
 --
 -- Throws 'UnicodeException' on invalid UTF16 on windows.
-fromByteString :: MonadThrow m
-               => ByteString
-               -> m OsString
+bsToOsString :: MonadThrow m
+             => ByteString
+             -> m OsString
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-fromByteString bs =
+bsToOsString bs =
   either throwM (const . pure . OsString . WS . toShort $ bs) $ decodeUtf16LE'' bs
 #else
-fromByteString = pure . OsString . PS . toShort
+bsToOsString = pure . OsString . PS . toShort
 #endif
 
 
@@ -170,7 +170,7 @@ qq quoteExp' =
 
 mkOsString :: ByteString -> Q Exp
 mkOsString bs = 
-  case fromByteString bs of
+  case bsToOsString bs of
     Just afp -> lift afp
     Nothing -> error "invalid encoding"
 

@@ -6,6 +6,7 @@
 module AFP.AbstractFilePath.Internal where
 
 import AFP.AbstractFilePath.Internal.Types
+import AFP.OsString.Internal.Types
 import AFP.OsString.Internal hiding
     ( fromByteString )
 import qualified AFP.OsString.Internal as OS
@@ -67,8 +68,8 @@ toAbstractFilePath = toOsString
 --
 -- Looking up the locale requires IO. If you're not worried about calls
 -- to 'setFileSystemEncoding', then 'unsafePerformIO' may be feasible.
-toAbstractFilePath' :: String -> IO AbstractFilePath
-toAbstractFilePath' = toOsString'
+toAbstractFilePathIO :: String -> IO AbstractFilePath
+toAbstractFilePathIO = toOsStringIO
 
 
 -- | Partial unicode friendly decoding.
@@ -92,8 +93,8 @@ fromAbstractFilePath = fromOsString
 -- to 'setFileSystemEncoding', then 'unsafePerformIO' may be feasible.
 --
 -- Throws 'UnicodeException' if decoding fails.
-fromAbstractFilePath' :: AbstractFilePath -> IO String
-fromAbstractFilePath' = fromOsString'
+fromAbstractFilePathIO :: AbstractFilePath -> IO String
+fromAbstractFilePathIO = fromOsStringIO
 
 
 -- | Constructs an @AbstractFilePath@ from a ByteString.
@@ -101,15 +102,15 @@ fromAbstractFilePath' = fromOsString'
 -- On windows, this ensures valid UTF16, on unix it is passed unchanged/unchecked.
 --
 -- Throws 'UnicodeException' on invalid UTF16 on windows.
-fromByteString :: MonadThrow m
-               => ByteString
-               -> m AbstractFilePath
-fromByteString = OS.fromByteString
+bsToAFP :: MonadThrow m
+        => ByteString
+        -> m AbstractFilePath
+bsToAFP = OS.bsToOsString
 
 
 mkAbstractFilePath :: ByteString -> Q Exp
 mkAbstractFilePath bs = 
-  case fromByteString bs of
+  case bsToAFP bs of
     Just afp ->
       if True -- isValid afp -- TODO
       then lift afp
@@ -121,4 +122,12 @@ mkAbstractFilePath bs =
 -- on the input.
 absfp :: QuasiQuoter
 absfp = qq mkAbstractFilePath
+
+
+unpackAFP :: AbstractFilePath -> [OsWord]
+unpackAFP = unpackOsString
+
+
+packAFP :: [OsWord] -> AbstractFilePath
+packAFP = packOsString
 
