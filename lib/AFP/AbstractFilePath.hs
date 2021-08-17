@@ -555,7 +555,7 @@ addTrailingPathSeparator :: AbstractFilePath -> AbstractFilePath
 addTrailingPathSeparator (OsString bs) = OsString $ AFP.addTrailingPathSeparator bs
 
 
--- | Remove a trailing path separator
+-- | Remove trailing path separators
 --
 -- > dropTrailingPathSeparator "/path/" == "/path"
 -- > dropTrailingPathSeparator "/path////" == "/path"
