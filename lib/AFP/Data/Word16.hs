@@ -99,7 +99,7 @@ isLetter :: Word16 -> Bool
 isLetter w = isLowerCommon w || isUpper w
 
 isMark :: Word16 -> Bool
-isMark _ = False
+isMark = (== 0x2713)
 
 isNumber :: Word16 -> Bool
 isNumber w = isDigit w
