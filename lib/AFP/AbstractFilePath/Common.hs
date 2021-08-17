@@ -1092,11 +1092,5 @@ hasParentDir (CTOR filepath) = C.hasParentDir filepath
 -- >>> hiddenFile ""
 -- False
 hiddenFile :: FILEPATH_NAME -> Bool
-hiddenFile (CTOR fp)
-  | fn == BS.pack [_period, _period] = False
-  | fn == BS.pack [_period]          = False
-  | otherwise                        = BS.pack [C.extSeparator]
-                                         `BS.isPrefixOf` fn
-  where
-    fn = C.takeFileName fp
+hiddenFile (CTOR fp) = C.hiddenFile fp
 #endif

@@ -576,6 +576,17 @@ isFileName filepath =
   not (BS.null filepath) &&
   not (_nul `BS.elem` filepath)
 
+#ifndef WINDOWS
+hiddenFile :: ShortByteString -> Bool
+hiddenFile fp
+  | fn == BS.pack [_period, _period] = False
+  | fn == BS.pack [_period]          = False
+  | otherwise                        = BS.pack [extSeparator]
+                                         `BS.isPrefixOf` fn
+  where
+    fn = takeFileName fp
+#endif
+
 
 hasParentDir :: ShortByteString -> Bool
 hasParentDir filepath =
