@@ -571,7 +571,7 @@ dropTrailingPathSeparator (OsString x) = OsString $ AFP.dropTrailingPathSeparato
 -- File name manipulations
 
 
--- |Normalise a file.
+-- |Normalise a file path.
 --
 -- > Posix: normalise "/file/\\test////" == "/file/\test/"
 -- > Windows: normalise "/file/\\test////" == "\file\test\"
