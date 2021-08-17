@@ -431,7 +431,7 @@ combine :: AbstractFilePath -> AbstractFilePath -> AbstractFilePath
 combine (OsString a) (OsString b) = OsString $ AFP.combine a b
 
 
--- | Operator version of combine
+-- | Operator version of 'combine'
 (</>) :: AbstractFilePath -> AbstractFilePath -> AbstractFilePath
 (</>) = combine
 
