@@ -306,8 +306,6 @@ any k (assertEven -> sbs) = go 0
 -- the value of every element. The following holds:
 --
 -- > replicate w c = unfoldr w (\u -> Just (u,u)) c
---
--- This implementation uses @memset(3)@
 replicate :: Int -> Word16 -> ShortByteString
 replicate w c
     | w <= 0    = empty
