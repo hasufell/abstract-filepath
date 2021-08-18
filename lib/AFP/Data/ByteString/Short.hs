@@ -5,6 +5,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE TypeApplications #-}
 
 module AFP.Data.ByteString.Short
   (
@@ -34,12 +35,25 @@ module AFP.Data.ByteString.Short
 
 
   -- * Reducing 'ShortByteString's (folds)
+  foldl,
   foldl',
+  foldl1,
+  foldl1',
+
+  foldr,
+  foldr',
+  foldr1,
+  foldr1',
 
   -- ** Special folds
   all,
   any,
   concat,
+
+  -- ** Generating and unfolding ByteStrings
+  replicate,
+  unfoldr,
+  unfoldrN,
 
   -- * Substrings
 
@@ -70,10 +84,17 @@ module AFP.Data.ByteString.Short
   -- ** Searching by equality
   elem,
 
+  -- ** Searching with a predicate
+  find,
+  filter,
+  partition,
+
   -- * Indexing ShortByteStrings
   index,
   elemIndex,
+  elemIndices,
   findIndex,
+  findIndices,
 
   -- * Low level conversions
   -- ** Packing 'CString's and pointers
@@ -94,12 +115,22 @@ import Prelude hiding
     , drop
     , dropWhile
     , elem
+    , filter
+    , foldl
+    , foldl'
+    , foldl1
+    , foldl1'
+    , foldr
+    , foldr'
+    , foldr1
+    , foldr1'
     , head
     , init
     , last
     , length
     , map
     , null
+    , replicate
     , span
     , splitAt
     , tail
@@ -134,6 +165,13 @@ import qualified Data.ByteString.Short.Internal as BS
 import Data.ByteString.Internal
     ( ByteString (..), accursedUnutterablePerformIO, c_strlen, memcmp )
 
+import GHC.List (errorEmptyList)
+import GHC.Exts (IsList (..))
+import qualified Data.Primitive.ByteArray as BA
+import qualified Data.DList as DL
+import Control.Monad (void)
+import Data.Bifunctor
+    ( first, bimap )
 import Data.Data
     ( Data (..), mkNoRepType )
 import Data.Typeable
@@ -143,7 +181,7 @@ import Data.Semigroup
     ( Semigroup ((<>)) )
 #endif
 import qualified Data.List as List
-    ( intersperse, length )
+import qualified Data.Foldable as Foldable
 import Data.Monoid
     ( Monoid (..) )
 import Data.String
@@ -194,8 +232,8 @@ infixl 5 `snoc`
 -- | /O(n)/ Append a byte to the end of a 'ShortByteString'
 -- 
 -- Note: copies the entire byte array
-snoc :: Word8 -> ShortByteString -> ShortByteString
-snoc c = \sbs -> let l = BS.length sbs
+snoc :: ShortByteString -> Word8 -> ShortByteString
+snoc = \sbs c -> let l = BS.length sbs
                      nl = l + 1
   in create nl $ \mba -> do
       copyByteArray (asBA sbs) 0 mba 0 nl
@@ -279,11 +317,62 @@ intercalate s = concat . List.intersperse s
 -- ---------------------------------------------------------------------
 -- Reducing 'ByteString's
 
+-- | 'foldl', applied to a binary operator, a starting value (typically
+-- the left-identity of the operator), and a ShortByteString, reduces the
+-- ShortByteString using the binary operator, from left to right.
+--
+foldl :: (a -> Word8 -> a) -> a -> ShortByteString -> a
+foldl f v = List.foldl f v . unpack
+{-# INLINE foldl #-}
+
 -- | 'foldl'' is like 'foldl', but strict in the accumulator.
 --
 foldl' :: (a -> Word8 -> a) -> a -> ShortByteString -> a
-foldl' f v = F.foldl f v . BS.unpack
+foldl' f v = List.foldl' f v . unpack
 {-# INLINE foldl' #-}
+
+-- | 'foldr', applied to a binary operator, a starting value
+-- (typically the right-identity of the operator), and a ShortByteString,
+-- reduces the ShortByteString using the binary operator, from right to left.
+foldr :: (Word8 -> a -> a) -> a -> ShortByteString -> a
+foldr f v = List.foldr f v . unpack
+{-# INLINE foldr #-}
+
+-- | 'foldr'' is like 'foldr', but strict in the accumulator.
+foldr' :: (Word8 -> a -> a) -> a -> ShortByteString -> a
+foldr' k v = Foldable.foldr' k v . unpack
+{-# INLINE foldr' #-}
+
+-- | 'foldl1' is a variant of 'foldl' that has no starting value
+-- argument, and thus must be applied to non-empty 'ShortByteString's.
+-- An exception will be thrown in the case of an empty ShortByteString.
+foldl1 :: (Word8 -> Word8 -> Word8) -> ShortByteString -> Word8
+foldl1 k = List.foldr1 k . unpack
+{-# INLINE foldl1 #-}
+
+-- | 'foldl1'' is like 'foldl1', but strict in the accumulator.
+-- An exception will be thrown in the case of an empty ShortByteString.
+foldl1' :: (Word8 -> Word8 -> Word8) -> ShortByteString -> Word8
+foldl1' k = List.foldl1' k . unpack
+
+-- | 'foldr1' is a variant of 'foldr' that has no starting value argument,
+-- and thus must be applied to non-empty 'ShortByteString's
+-- An exception will be thrown in the case of an empty ShortByteString.
+foldr1 :: (Word8 -> Word8 -> Word8) -> ShortByteString -> Word8
+foldr1 k = List.foldr1 k . unpack
+{-# INLINE foldr1 #-}
+
+-- | 'foldr1'' is a variant of 'foldr1', but is strict in the
+-- accumulator.
+foldr1' :: (Word8 -> Word8 -> Word8) -> ShortByteString -> Word8
+foldr1' k = _foldr1' k . unpack
+ where
+  -- | A strict version of 'foldr1'.
+  _foldr1'                  :: (a -> a -> a) -> [a] -> a
+  _foldr1' f (x:xs)         =  Foldable.foldr' f x xs
+  _foldr1' _ []             =  errorEmptyList "foldl1'"
+{-# INLINE foldr1' #-}
+
 
 
 -- ---------------------------------------------------------------------
@@ -480,6 +569,66 @@ stripSuffix sbs1 sbs2 = do
             return Nothing
 
 
+-- ---------------------------------------------------------------------
+-- Unfolds and replicates
+
+
+-- | /O(n)/ 'replicate' @n x@ is a ByteString of length @n@ with @x@
+-- the value of every element. The following holds:
+--
+-- > replicate w c = unfoldr w (\u -> Just (u,u)) c
+--
+-- This implementation uses @memset(3)@
+replicate :: Int -> Word8 -> ShortByteString
+replicate w c
+    | w <= 0    = empty
+    | otherwise = create w (\mba -> go mba 0)
+  where
+    go mba ix
+      | ix < 0 || ix >= w = pure ()
+      | otherwise = writeWord8Array mba ix c >> go mba (ix + 1)
+{-# INLINE replicate #-}
+
+-- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr'
+-- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a
+-- ShortByteString from a seed value.  The function takes the element and
+-- returns 'Nothing' if it is done producing the ShortByteString or returns
+-- 'Just' @(a,b)@, in which case, @a@ is the next byte in the string,
+-- and @b@ is the seed value for further production.
+--
+-- Examples:
+--
+-- >    unfoldr (\x -> if x <= 5 then Just (x, x + 1) else Nothing) 0
+-- > == pack [0, 1, 2, 3, 4, 5]
+--
+unfoldr :: (a -> Maybe (Word8, a)) -> a -> ShortByteString
+unfoldr f x0 = pack . DL.toList $ go x0 mempty
+ where
+   go x words = case f x of
+                    Nothing -> words
+                    Just (w, x') -> go x' (DL.snoc words w)
+{-# INLINE unfoldr #-}
+
+-- | /O(n)/ Like 'unfoldr', 'unfoldrN' builds a ShortByteString from a seed
+-- value.  However, the length of the result is limited by the first
+-- argument to 'unfoldrN'.  This function is more efficient than 'unfoldr'
+-- when the maximum length of the result is known.
+--
+-- The following equation relates 'unfoldrN' and 'unfoldr':
+--
+-- > fst (unfoldrN n f s) == take n (unfoldr f s)
+--
+unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ShortByteString, Maybe a)
+unfoldrN i f x0 = first (pack . DL.toList) $ go i x0 mempty
+ where
+   go i' x words
+    | i' < 0     = (words, Just x)
+    | otherwise = case f x of
+                    Nothing -> (words, Nothing)
+                    Just (w, x') -> go (i' - 1) x' (DL.snoc words w)
+{-# INLINE unfoldrN #-}
+
+
 -- --------------------------------------------------------------------
 -- Predicates
 
@@ -609,6 +758,39 @@ breakSubstring pat =
 elem :: Word8 -> ShortByteString -> Bool
 elem c ps = case elemIndex c ps of Nothing -> False ; _ -> True
 
+-- | /O(n)/ 'filter', applied to a predicate and a ByteString,
+-- returns a ByteString containing those characters that satisfy the
+-- predicate.
+filter :: (Word8 -> Bool) -> ShortByteString -> ShortByteString
+filter k sbs
+    | null sbs   = sbs
+    | otherwise = pack . List.filter k . unpack $ sbs
+{-# INLINE filter #-}
+
+-- | /O(n)/ The 'find' function takes a predicate and a ByteString,
+-- and returns the first element in matching the predicate, or 'Nothing'
+-- if there is no such element.
+--
+-- > find f p = case findIndex f p of Just n -> Just (p ! n) ; _ -> Nothing
+--
+find :: (Word8 -> Bool) -> ShortByteString -> Maybe Word8
+find f p = case findIndex f p of
+                    Just n -> Just (p `index` n)
+                    _      -> Nothing
+{-# INLINE find #-}
+
+-- | /O(n)/ The 'partition' function takes a predicate a ByteString and returns
+-- the pair of ByteStrings with elements which do and do not satisfy the
+-- predicate, respectively; i.e.,
+--
+-- > partition p bs == (filter p xs, filter (not . p) xs)
+--
+partition :: (Word8 -> Bool) -> ShortByteString -> (ShortByteString, ShortByteString)
+partition f s
+    | null s    = (s, s)
+    | otherwise = bimap pack pack . List.partition f . unpack $ s
+
+
 
 -- --------------------------------------------------------------------
 -- Indexing ShortByteString
@@ -619,6 +801,11 @@ elem c ps = case elemIndex c ps of Nothing -> False ; _ -> True
 elemIndex :: Word8 -> ShortByteString -> Maybe Int
 elemIndex k = findIndex (==k)
 {-# INLINE elemIndex #-}
+
+-- | /O(n)/ The 'elemIndices' function extends 'elemIndex', by returning
+-- the indices of all elements equal to the query element, in ascending order.
+elemIndices :: Word8 -> ShortByteString -> [Int]
+elemIndices k = findIndices (==k)
 
 -- | /O(n)/ The 'findIndex' function takes a predicate and a 'ShortByteString' and
 -- returns the index of the first element in the ByteString
@@ -633,6 +820,20 @@ findIndex k sbs = go 0
           | k (w n)   = Just n
           | otherwise = go (n + 1)
 {-# INLINE findIndex #-}
+
+
+-- | /O(n)/ The 'findIndices' function extends 'findIndex', by returning the
+-- indices of all elements satisfying the predicate, in ascending order.
+findIndices :: (Word8 -> Bool) -> ShortByteString -> [Int]
+findIndices k sbs = go 0
+  where
+    l = BS.length sbs
+    ba = asBA sbs
+    w = indexWord8Array ba
+    go !n | n >= l    = []
+          | k (w n)   = n : go (n + 1)
+          | otherwise = go (n + 1)
+{-# INLINE [1] findIndices #-}
 
 
 -- --------------------------------------------------------------------

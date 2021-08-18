@@ -15,6 +15,10 @@ import "bytestring" Data.ByteString.Short.Internal
 import GHC.Exts
 import GHC.ST
     ( ST (ST), runST )
+import Data.Word
+  ( Word8 )
+import System.IO.Unsafe
+  ( unsafeDupablePerformIO )
 
 
 create :: Int -> (forall s. MBA s -> ST s ()) -> ShortByteString

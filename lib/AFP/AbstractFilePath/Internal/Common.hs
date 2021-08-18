@@ -404,7 +404,7 @@ hasTrailingPathSeparator x
 addTrailingPathSeparator :: ShortByteString -> ShortByteString
 addTrailingPathSeparator bs = if hasTrailingPathSeparator bs
     then bs
-    else BS.snoc pathSeparator bs
+    else BS.snoc bs pathSeparator 
 
 
 dropTrailingPathSeparator :: ShortByteString -> ShortByteString
@@ -566,7 +566,7 @@ makeValid path
     validElements = joinPath . map g . splitPath
     g x = h a `BS.append` b
         where (a,b) = BS.break isPathSeparator x
-    h x = if BS.map toUpper (BS.dropWhileEnd isSpace a) `elem` badElements then (BS.snoc _underscore a) <.> b else x
+    h x = if BS.map toUpper (BS.dropWhileEnd isSpace a) `elem` badElements then (BS.snoc a _underscore ) <.> b else x
         where (a,b) = splitExtensions x
 
 
@@ -598,7 +598,7 @@ hasParentDir filepath =
         `BS.append` BS.singleton sep)
      BS.isInfixOf
    ||
-    predicate (\sep -> BS.snoc sep pathDoubleDot )
+    predicate (\sep -> BS.snoc pathDoubleDot sep)
       BS.isPrefixOf
   where
     pathDoubleDot = BS.pack [_period, _period]
