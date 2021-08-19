@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 #define MODULE_NAME     Windows
 #define PLATFORM_STRING WindowsString
-#define PLATFORM_WORD   WindowsWord
+#define PLATFORM_WORD   WindowsChar
 #define IS_WINDOWS      True
 #define WINDOWS
 #include "Common.hs"

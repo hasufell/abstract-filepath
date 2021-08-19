@@ -11,6 +11,7 @@ import Control.Monad.Catch
     ( MonadThrow )
 import Data.ByteString
     ( ByteString )
+import Data.Char
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
     ( QuasiQuoter (..) )
@@ -114,13 +115,23 @@ osstr :: QuasiQuoter
 osstr = qq mkOsString
 
 
-unpackOsString :: OsString -> [OsWord]
-unpackOsString (OsString x) = fmap OsWord $ unpackPlatformString x
+unpackOsString :: OsString -> [OsChar]
+unpackOsString (OsString x) = fmap OsChar $ unpackPlatformString x
 
 
-packOsString :: [OsWord] -> OsString
-packOsString = OsString . packPlatformString . fmap (\(OsWord x) -> x)
+packOsString :: [OsChar] -> OsString
+packOsString = OsString . packPlatformString . fmap (\(OsChar x) -> x)
 
 
-fromChar :: Char -> OsWord
-fromChar = OsWord . PF.fromChar
+-- | Truncates on unix to 1 and on Windows to 2 octets.
+fromChar :: Char -> OsChar
+fromChar = OsChar . PF.fromChar
+
+-- | Converts back to a unicode codepoint (total).
+toChar :: OsChar -> Char
+#ifdef WINDOWS
+toChar (OsChar (WW w)) = chr $ fromIntegral w
+#else
+toChar (OsChar (PW w)) = chr $ fromIntegral w
+#endif
+

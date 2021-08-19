@@ -93,10 +93,10 @@ afp :: QuasiQuoter
 afp = qq mkAbstractFilePath
 
 
-unpackAFP :: AbstractFilePath -> [OsWord]
+unpackAFP :: AbstractFilePath -> [OsChar]
 unpackAFP = unpackOsString
 
 
-packAFP :: [OsWord] -> AbstractFilePath
+packAFP :: [OsChar] -> AbstractFilePath
 packAFP = packOsString
 

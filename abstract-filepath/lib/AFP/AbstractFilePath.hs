@@ -65,7 +65,7 @@ module AFP.AbstractFilePath
   -- * Types
     AbstractFilePath
   , OsString
-  , OsWord
+  , OsChar
 
   -- * Construction
   , toAbstractFilePath
@@ -179,8 +179,8 @@ import Data.Bifunctor
 
 #define FILEPATH_NAME   AbstractFilePath
 #define OSSTRING_NAME   OsString
-#define WORD_NAME       OsWord
+#define WORD_NAME       OsChar
 #define CTOR            OsString
-#define WTOR            OsWord
+#define WTOR            OsChar
 
 #include "AbstractFilePath/Common.hs"

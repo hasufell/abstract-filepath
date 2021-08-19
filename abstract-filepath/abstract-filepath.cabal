@@ -80,6 +80,7 @@ test-suite doctest
     , abstract-filepath
     , base               >=4.10 && <5
     , doctest
+    , word8
 
 benchmark abstract-filepath-bench
   main-is:          Bench.hs

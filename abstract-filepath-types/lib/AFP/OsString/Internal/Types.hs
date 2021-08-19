@@ -9,11 +9,11 @@ module AFP.OsString.Internal.Types
     WindowsString(..)
   , PosixString(..)
   , PlatformString
-  , WindowsWord(..)
-  , PosixWord(..)
-  , PlatformWord
+  , WindowsChar(..)
+  , PosixChar(..)
+  , PlatformChar
   , OsString(..)
-  , OsWord(..)
+  , OsChar(..)
   )
 where
 
@@ -97,15 +97,15 @@ type PlatformString = WindowsString
 type PlatformString = PosixString
 #endif
 
-newtype WindowsWord = WW Word16
+newtype WindowsChar = WW Word16
   deriving (Eq, Ord, Show)
-newtype PosixWord   = PW Word8
+newtype PosixChar   = PW Word8
   deriving (Eq, Ord, Show)
 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-type PlatformWord = WindowsWord
+type PlatformChar = WindowsChar
 #else
-type PlatformWord = PosixWord
+type PlatformChar = PosixChar
 #endif
 
 
@@ -180,16 +180,16 @@ instance Show OsString where
 
 -- | Newtype representing operating system Word with respect to
 -- the encoding. On Windows, this is 'Word16', on POSIX 'Word8'.
-newtype OsWord = OsWord PlatformWord
+newtype OsChar = OsChar PlatformChar
   deriving Show
 
 -- | Byte equality of the internal representation.
-instance Eq OsWord where
-  (OsWord a) == (OsWord b) = a == b
+instance Eq OsChar where
+  (OsChar a) == (OsChar b) = a == b
 
 -- | Byte ordering of the internal representation.
-instance Ord OsWord where
-  compare (OsWord a) (OsWord b) = compare a b
+instance Ord OsChar where
+  compare (OsChar a) (OsChar b) = compare a b
 
 
 

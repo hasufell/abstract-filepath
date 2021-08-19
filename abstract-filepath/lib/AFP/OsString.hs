@@ -32,16 +32,20 @@ module AFP.OsString
   , unpackOsString
 
   -- * Word types
-  , OsWord
+  , OsChar
 
   -- * Word construction
   , fromChar
+
+  -- * Word deconstruction
+  , toChar
   )
 where
 
 import AFP.OsString.Internal
     ( bsToOsString
     , fromChar
+    , toChar
     , fromOsString
     , fromOsStringIO
     , osstr
@@ -51,4 +55,4 @@ import AFP.OsString.Internal
     , unpackOsString
     )
 import AFP.OsString.Internal.Types
-    ( OsString, OsWord )
+    ( OsString, OsChar )

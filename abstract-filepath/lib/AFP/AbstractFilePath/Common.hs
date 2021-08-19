@@ -4,8 +4,8 @@
 --     POSIX
 --     FILEPATH_NAME = PosixFilePath | WindowsFilePath  | AbstractFilePath
 --     OSSTRING_NAME = PosixString   | WindowsString    | OsString
---     WORD_NAME     = PosixWord     | WindowsWord      | OsWord
---     WTOR          = PW            | WW               | OsWord
+--     WORD_NAME     = PosixChar     | WindowsChar      | OsChar
+--     WTOR          = PW            | WW               | OsChar
 --     CTOR          = PS            | WS               | OsString
 
 

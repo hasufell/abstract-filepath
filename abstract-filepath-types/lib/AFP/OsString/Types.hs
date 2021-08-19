@@ -3,11 +3,11 @@ module AFP.OsString.Types
     WindowsString
   , PosixString
   , PlatformString
-  , WindowsWord
-  , PosixWord
-  , PlatformWord
+  , WindowsChar
+  , PosixChar
+  , PlatformChar
   , OsString
-  , OsWord
+  , OsChar
   )
 where
 

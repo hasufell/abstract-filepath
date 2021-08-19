@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 #define FILEPATH_NAME   WindowsFilePath
 #define OSSTRING_NAME   WindowsString
-#define WORD_NAME       WindowsWord
+#define WORD_NAME       WindowsChar
 #define CTOR            WS
 #define WTOR            WW
 #define IS_WINDOWS      True
@@ -11,7 +11,7 @@ module AFP.AbstractFilePath.Windows
   (
   -- * Types
     WindowsString
-  , WindowsWord
+  , WindowsChar
   , WindowsFilePath
   -- * String construction
   , toPlatformString

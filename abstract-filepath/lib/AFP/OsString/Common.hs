@@ -8,10 +8,10 @@ module AFP.OsString.MODULE_NAME
   -- * Types
 #ifdef WINDOWS
     WindowsString
-  , WindowsWord
+  , WindowsChar
 #else
     PosixString
-  , PosixWord
+  , PosixChar
 #endif
 
   -- * String construction
@@ -29,6 +29,8 @@ module AFP.OsString.MODULE_NAME
   -- * Word construction
   , fromChar
 
+  -- * Word deconstruction
+  , toChar
   )
 where
 
@@ -36,11 +38,11 @@ where
 import AFP.OsString.Internal.Types
 #ifdef WINDOWS
   ( WindowsString
-  , WindowsWord
+  , WindowsChar
   )
 #else
   ( PosixString
-  , PosixWord
+  , PosixChar
   )
 #endif
 
@@ -63,12 +65,13 @@ import AFP.Data.ByteString.Short.Decode
     )
 import AFP.OsString.Internal.Types (
 #ifdef WINDOWS
-  WindowsString(..), WindowsWord(..)
+  WindowsString(..), WindowsChar(..)
 #else
-  PosixString(..), PosixWord(..)
+  PosixString(..), PosixChar(..)
 #endif
   )
 
+import Data.Char
 import Control.Exception
     ( throwIO )
 import Control.Monad.Catch
@@ -227,10 +230,20 @@ packPlatformString ws = PS . BS.pack . fmap (\(PW w) -> w) $ ws
 #endif
 
 
-fromChar :: Char -> PLATFORM_WORD
 #ifdef WINDOWS
+-- | Truncates to 2 octets.
+fromChar :: Char -> PLATFORM_WORD
 fromChar = WW . fromIntegral . fromEnum
 #else
+-- | Truncates 1 octet.
+fromChar :: Char -> PLATFORM_WORD
 fromChar = PW . fromIntegral . fromEnum
 #endif
 
+-- | Converts back to a unicode codepoint (total).
+toChar :: PLATFORM_WORD -> Char
+#ifdef WINDOWS
+toChar (WW w) = chr $ fromIntegral w
+#else
+toChar (PW w) = chr $ fromIntegral w
+#endif
