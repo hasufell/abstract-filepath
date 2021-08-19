@@ -62,7 +62,7 @@ jobs:
       shell: bash
 
     - name: Build haddock
-      run: cabal haddock
+      run: cabal haddock all
       shell: bash
 
     - if: always()
