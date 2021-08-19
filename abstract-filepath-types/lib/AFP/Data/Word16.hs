@@ -1,5 +1,5 @@
--- | Word16 module AFP.to be used with ShortByteString.
--- All function assumes that 'Word16' is encoded in UTF16-LE.
+-- | Word16 module to be used with ShortByteString.
+-- All function assumes that 'Word16' is encoded in BE.
 --
 -- Works with Unicode7+ (GHC 7.10+ / Base library 4.8+).
 module AFP.Data.Word16 (
