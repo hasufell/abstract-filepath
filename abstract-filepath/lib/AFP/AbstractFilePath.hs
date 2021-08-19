@@ -82,6 +82,9 @@ module AFP.AbstractFilePath
   -- * Word construction
   , fromChar
 
+  -- * Word deconstruction
+  , toChar
+
   -- * Separator predicates
   , pathSeparator
   , pathSeparators
