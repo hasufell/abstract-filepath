@@ -71,6 +71,9 @@ import Data.Maybe
     ( isJust )
 import Prelude hiding
     ( Word )
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#endif
 
 import Data.String
 

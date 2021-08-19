@@ -53,12 +53,21 @@ jobs:
       run: cabal install --installdir="$HOME/.local/bin" --install-method=copy --overwrite-policy=always hspec-discover
       shell: bash
 
+    - name: Install cabal-docspec
+      run: |
+        git clone https://github.com/phadej/cabal-extras.git
+        cd cabal-extras/cabal-docspec
+        cabal install --installdir="$HOME/.local/bin" --install-method=copy --overwrite-policy=always
+      shell: bash
+
     - name: Build
       run: cabal build --enable-tests --enable-benchmarks all
       shell: bash
 
     - name: Run tests
-      run: cabal test all
+      run: |
+        cabal test abstract-filepath:spec
+        cabal-docspec -XCPP -XTypeSynonymInstances -XOverloadedStrings abstract-filepath
       shell: bash
 
     - name: Build haddock

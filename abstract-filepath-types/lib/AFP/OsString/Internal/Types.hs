@@ -39,10 +39,15 @@ import Data.Text.Internal.Unsafe.Char
     ( ord, unsafeChr, unsafeChr8 )
 import qualified Data.Text.Internal.Encoding.Utf16 as U16
 import qualified Data.Text.Internal.Encoding.Utf8 as U8
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#endif
 
 
 import qualified Data.ByteString.Short as BS
+#if MIN_VERSION_template_haskell(2,16,0)
 import qualified Language.Haskell.TH.Syntax as TH
+#endif
 
 -- Using unpinned bytearrays to avoid Heap fragmentation and
 -- which are reasonably cheap to pass to FFI calls
