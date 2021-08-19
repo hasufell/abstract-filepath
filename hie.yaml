@@ -1,10 +1,12 @@
 cradle:
   cabal:
   - component: "abstract-filepath:lib:abstract-filepath"
-    path: ./lib
+    path: "./abstract-filepath/lib"
   - component: "abstract-filepath:test:abstract-filepath-test"
-    path: ./test
+    path: "./abstract-filepath/test"
   - component: "abstract-filepath:test:doctest"
-    path: ./test
+    path: "./abstract-filepath/test"
   - component: "abstract-filepath:bench:abstract-filepath-bench"
-    path: ./bench
+    path: "./abstract-filepath/bench"
+  - component: "abstract-filepath-types:lib:abstract-filepath-types"
+    path: "./abstract-filepath-types/lib"
