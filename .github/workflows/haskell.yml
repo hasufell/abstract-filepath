@@ -76,6 +76,10 @@ jobs:
       run: cabal-docspec -XCPP -XTypeSynonymInstances -XOverloadedStrings abstract-filepath
       shell: bash
 
+    - name: Run benches
+      run: cabal bench all
+      shell: bash
+
     - name: Build haddock
       run: cabal haddock all
       shell: bash
@@ -121,4 +125,8 @@ jobs:
 
     - name: Run tests
       run: stack test abstract-filepath:spec
+      shell: bash
+
+    - name: Run benches
+      run: stack bench
       shell: bash
