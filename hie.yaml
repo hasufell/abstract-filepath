@@ -4,3 +4,7 @@ cradle:
     path: ./lib
   - component: "abstract-filepath:test:abstract-filepath-test"
     path: ./test
+  - component: "abstract-filepath:test:doctest"
+    path: ./test
+  - component: "abstract-filepath:bench:abstract-filepath-bench"
+    path: ./bench
