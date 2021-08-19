@@ -79,7 +79,7 @@ test-suite doctest
   build-depends:
     , abstract-filepath
     , base               >=4.10 && <5
-    , doctest            ^>=0.18
+    , doctest            ^>=0.17
     , word8              ^>=0.1
 
 benchmark abstract-filepath-bench

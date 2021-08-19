@@ -114,5 +114,5 @@ jobs:
       shell: bash
 
     - name: Run tests
-      run: stack test
+      run: stack test abstract-filepath:spec
       shell: bash
