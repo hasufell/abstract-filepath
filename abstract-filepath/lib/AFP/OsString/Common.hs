@@ -235,7 +235,7 @@ packPlatformString ws = PS . BS.pack . fmap (\(PW w) -> w) $ ws
 fromChar :: Char -> PLATFORM_WORD
 fromChar = WW . fromIntegral . fromEnum
 #else
--- | Truncates 1 octet.
+-- | Truncates to 1 octet.
 fromChar :: Char -> PLATFORM_WORD
 fromChar = PW . fromIntegral . fromEnum
 #endif
