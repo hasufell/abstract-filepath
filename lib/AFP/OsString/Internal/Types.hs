@@ -115,7 +115,6 @@ type PlatformWord = PosixWord
 -- in case you need to write platform specific code, such as the implementation
 -- of 'fromAbstractFilePath'.
 newtype OsString = OsString PlatformString
-  deriving Show
 
 -- | Byte equality of the internal representation.
 instance Eq OsString where
@@ -159,6 +158,13 @@ instance Lift OsString where
   liftTyped = TH.unsafeCodeCoerce . TH.lift
 #elif MIN_VERSION_template_haskell(2,16,0)
   liftTyped = TH.unsafeTExpCoerce . TH.lift
+#endif
+
+instance Show OsString where
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+  show (OsString (WS bs)) = ('\"': decodeUtf16LE bs) <> "\""
+#else
+  show (OsString (PS bs)) = ('\"': decodeUtf8 bs) <> "\""
 #endif
 
 

@@ -576,6 +576,15 @@ makeValid path
         where (a,b) = splitExtensions x
 
 
+#ifndef WINDOWS
+isSpecialDirectoryEntry :: ShortByteString -> Bool
+isSpecialDirectoryEntry filepath
+  | BS.pack [_period, _period] == filepath = True
+  | BS.pack [_period] == filepath          = True
+  | otherwise                              = False
+#endif
+
+
 isFileName :: ShortByteString -> Bool
 isFileName filepath =
   not (foldr (\a b -> BS.singleton a `BS.isInfixOf` filepath || b) False pathSeparators) &&

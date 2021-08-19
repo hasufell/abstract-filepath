@@ -1,15 +1,15 @@
 {-# LANGUAGE CPP #-}
-#define MODULE_NAME     Posix
 #define FILEPATH_NAME   PosixFilePath
 #define OSSTRING_NAME   PosixString
 #define WORD_NAME       PosixWord
 #define CTOR            PS
 #define WTOR            PW
 #define IS_WINDOWS      False
+#define POSIX
 #undef WINDOWS
 
 
-module AFP.AbstractFilePath.MODULE_NAME
+module AFP.AbstractFilePath.Posix
   (
   -- * Types
     PosixString
@@ -108,7 +108,7 @@ import AFP.AbstractFilePath.Internal.Types
 import AFP.AbstractFilePath.Internal.Types
 import AFP.OsString.Internal.Types
 
-import AFP.OsString.MODULE_NAME (
+import AFP.OsString.Posix (
     toPlatformString
   , toPlatformStringIO
   , bsToPlatformString
@@ -132,7 +132,7 @@ import Data.ByteString.Short
 import Data.Maybe
     ( isJust )
 import Data.Word8
-    ( Word8, _colon, _nul, _period, _slash, _underscore )
+    ( Word8, _period )
 
 import qualified AFP.AbstractFilePath.Internal.Posix as C
 import qualified AFP.Data.ByteString.Short as BS

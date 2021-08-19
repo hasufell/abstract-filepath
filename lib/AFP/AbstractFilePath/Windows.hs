@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-#define MODULE_NAME     Windows
 #define FILEPATH_NAME   WindowsFilePath
 #define OSSTRING_NAME   WindowsString
 #define WORD_NAME       WindowsWord
@@ -8,18 +7,12 @@
 #define IS_WINDOWS      True
 #define WINDOWS
 
-module AFP.AbstractFilePath.MODULE_NAME
+module AFP.AbstractFilePath.Windows
   (
   -- * Types
-#ifdef WINDOWS
     WindowsString
   , WindowsWord
   , WindowsFilePath
-#else
-    PosixString
-  , PosixWord
-  , PosixFilePath
-#endif
   -- * String construction
   , toPlatformString
   , toPlatformStringIO
@@ -109,7 +102,7 @@ import AFP.AbstractFilePath.Internal.Types
 import AFP.AbstractFilePath.Internal.Types
 import AFP.OsString.Internal.Types
 
-import AFP.OsString.MODULE_NAME (
+import AFP.OsString.Windows (
     toPlatformString
   , toPlatformStringIO
   , bsToPlatformString
@@ -132,8 +125,8 @@ import Data.ByteString.Short
     ( ShortByteString )
 import Data.Maybe
     ( isJust )
-import Data.Word8
-    ( Word8, _colon, _nul, _period, _slash, _underscore )
+import AFP.Data.Word16
+    ( Word16, _period )
 
 import qualified AFP.AbstractFilePath.Internal.Windows as C
 import qualified AFP.Data.ByteString.Short.Word16 as BS
@@ -143,7 +136,7 @@ import qualified AFP.Data.ByteString.Short.Word16 as BS
 -- >>> :set -XFlexibleInstances
 -- >>> import Data.Char
 -- >>> import Data.Maybe
--- >>> import Data.Word8
+-- >>> import AFP.Data.Word16
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
 -- >>> import AFP.AbstractFilePath.Internal.Types

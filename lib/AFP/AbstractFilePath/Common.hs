@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 -- This template expects CPP definitions for:
 --     WINDOWS
+--     POSIX
 --     FILEPATH_NAME = PosixFilePath | WindowsFilePath  | AbstractFilePath
 --     OSSTRING_NAME = PosixString   | WindowsString    | OsString
 --     WORD_NAME     = PosixWord     | WindowsWord      | OsWord
@@ -13,11 +14,21 @@
 -- Separator predicates
 
 
+#ifdef WINDOWS
+-- | Ideal path separator character: '\\'.
+#elif defined POSIX
+-- | Ideal path separator character: '/'.
+#else
+-- | Ideal path separator character:
+--
+--   - on windows: '\\'.
+--   - on unix: '/'.
+#endif
 -- | Ideal path separator character
 pathSeparator :: WORD_NAME
 pathSeparator = WTOR C.pathSeparator
 
--- | All path separator characters
+-- | All path separator characters: @[ '/', '\\']
 pathSeparators :: [WORD_NAME]
 pathSeparators = WTOR <$> C.pathSeparators
 
@@ -27,7 +38,16 @@ pathSeparators = WTOR <$> C.pathSeparators
 isPathSeparator :: WORD_NAME -> Bool
 isPathSeparator (WTOR w) = C.isPathSeparator w
 
--- | Search path separator
+#ifdef WINDOWS
+-- | Search path separator: ';'.
+#elif defined POSIX
+-- | Search path separator: ':'.
+#else
+-- | Search path separator:
+--
+--   - on windows: ';'.
+--   - on unix: ':'.
+#endif
 searchPathSeparator :: WORD_NAME
 searchPathSeparator = WTOR C.searchPathSeparator
 
@@ -38,7 +58,7 @@ isSearchPathSeparator :: WORD_NAME -> Bool
 isSearchPathSeparator (WTOR w) = C.isSearchPathSeparator w
 
 
--- | File extension separator
+-- | File extension separator '.'.
 extSeparator :: WORD_NAME
 extSeparator = WTOR C.extSeparator
 
@@ -54,14 +74,10 @@ isExtSeparator (WTOR w) = C.isExtSeparator w
 -- $PATH methods
 
 
--- | Take an 'OsString', split it on the 'searchPathSeparator'.
--- On Windows path elements are stripped of quotes.
--- On Posix blank items are converted to @.@.
---
--- Follows the recommendations in
--- <http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html>
---
 #ifdef WINDOWS
+-- | Take an 'OsString', split it on the 'searchPathSeparator'.
+-- Path elements are stripped of quotes.
+--
 -- >>> splitSearchPath "File1;File2;File3"
 -- ["File1","File2","File3"]
 -- >>> splitSearchPath "File1;;File2;File3"
@@ -70,13 +86,34 @@ isExtSeparator (WTOR w) = C.isExtSeparator w
 -- ["File1","File2","File3"]
 -- >>> splitSearchPath ""
 -- []
-#else
+#elif defined POSIX
+-- | Take an 'OsString', split it on the 'searchPathSeparator'.
+-- Blank items are converted to @.@.
+--
+-- Follows the recommendations in
+-- <http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html>
+--
 -- >>> splitSearchPath "File1:File2:File3"
 -- ["File1","File2","File3"]
 -- >>> splitSearchPath "File1::File2:File3"
 -- ["File1",".","File2","File3"]
 -- >>> splitSearchPath ""
 -- ["."]
+#else
+-- | Take an 'OsString', split it on the 'searchPathSeparator'.
+-- On Windows path elements are stripped of quotes.
+-- On Posix blank items are converted to @.@.
+--
+-- Follows the recommendations in
+-- <http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html>
+--
+-- > Windows: splitSearchPath "File1;File2;File3" == ["File1","File2","File3"]
+-- > Windows: splitSearchPath "File1;;File2;File3" == ["File1","File2","File3"]
+-- > Windows: splitSearchPath "File1;\"File2\";File3" == ["File1","File2","File3"]
+-- > Windows: splitSearchPath "" == []
+-- > Posix: splitSearchPath "File1:File2:File3" == ["File1","File2","File3"]
+-- > Posix: splitSearchPath "File1::File2:File3" == ["File1",".","File2","File3"]
+-- > Posix: splitSearchPath "" == ["."]
 #endif
 splitSearchPath :: OSSTRING_NAME -> [FILEPATH_NAME]
 splitSearchPath (CTOR x) = fmap CTOR . C.splitSearchPath $ x
@@ -222,7 +259,7 @@ stripExtension (CTOR bs) (CTOR x) = fmap CTOR $ C.stripExtension bs x
 
 
 #ifdef WINDOWS
--- | Split a path into (path,file).  'combine' is the inverse
+-- | Split a path into (path,file). 'combine' is the inverse
 --
 -- >>> splitFileName "path\\file.txt"
 -- ("path\","file.txt")
@@ -232,8 +269,8 @@ stripExtension (CTOR bs) (CTOR x) = fmap CTOR $ C.stripExtension bs x
 -- (".\","file.txt")
 --
 -- prop> \path -> uncurry combine (splitFileName path) == path || fst (splitFileName path) == ".\\"
-#else
--- | Split a path into (path,file).  'combine' is the inverse
+#elif defined POSIX
+-- | Split a path into (path,file). 'combine' is the inverse
 --
 -- >>> splitFileName "path/file.txt"
 -- ("path/","file.txt")
@@ -243,6 +280,17 @@ stripExtension (CTOR bs) (CTOR x) = fmap CTOR $ C.stripExtension bs x
 -- ("./","file.txt")
 --
 -- prop> \path -> uncurry combine (splitFileName path) == path || fst (splitFileName path) == "./"
+#else
+-- | Split a path into (path,file). 'combine' is the inverse
+--
+-- > Wiindows: splitFileName "path\\file.txt" == ("path\","file.txt")
+-- > Windows: splitFileName "path\\" == ("path\","")
+-- > Windows: splitFileName "file.txt" == (".\","file.txt")
+-- > Posix: splitFileName "path/file.txt" == ("path/","file.txt")
+-- > Posix: splitFileName "path/" == ("path/","")
+-- > Posix: splitFileName "file.txt" == ("./","file.txt")
+--
+-- > uncurry combine (splitFileName path) == path || fst (splitFileName path) == "./"
 #endif
 splitFileName :: FILEPATH_NAME -> (FILEPATH_NAME, FILEPATH_NAME)
 splitFileName (CTOR x) = bimap CTOR CTOR $ C.splitFileName x
@@ -272,13 +320,20 @@ replaceFileName (CTOR x) (CTOR y) = CTOR $ C.replaceFileName x y
 -- "path\"
 -- >>> dropFileName "file.txt"
 -- ".\"
-#else
+#elif defined POSIX
 -- | Drop the file name
 --
 -- >>> dropFileName "path/file.txt"
 -- "path/"
 -- >>> dropFileName "file.txt"
 -- "./"
+#else
+-- | Drop the file name
+--
+-- > Windows: dropFileName "path\\file.txt" == "path\"
+-- > Windows: dropFileName "file.txt" == ".\"
+-- > Posix: dropFileName "path/file.txt" == "path/"
+-- > Posix: dropFileName "file.txt" == "./"
 #endif
 dropFileName :: FILEPATH_NAME -> FILEPATH_NAME
 dropFileName (CTOR x) = CTOR $ C.dropFileName x
@@ -335,7 +390,7 @@ replaceDirectory (CTOR file) (CTOR dir) = CTOR $ C.replaceDirectory file dir
 -- "C:\path\to\file"
 -- >>> combine "file" "\\absolute\\path"
 -- "\absolute\path"
-#else
+#elif defined POSIX
 -- | Join two paths together. If the second path is absolute, then returns it, ignoring
 --  the first path.
 --
@@ -345,6 +400,16 @@ replaceDirectory (CTOR file) (CTOR dir) = CTOR $ C.replaceDirectory file dir
 -- "/path/to/file"
 -- >>> combine "file" "/absolute/path"
 -- "/absolute/path"
+#else
+-- | Join two paths together. If the second path is absolute, then returns it, ignoring
+--  the first path.
+--
+-- > Windows: combine "C:\\" "file" == "C:\file"
+-- > Windows: combine "C:\\path\\to" "file" == "C:\path\to\file"
+-- > Windows: combine "file" "\\absolute\\path" == "\absolute\path"
+-- > Posix: combine "/" "file" == "/file"
+-- > Posix: combine "/path/to" "file" == "/path/to/file"
+-- > Posix: combine "file" "/absolute/path" == "/absolute/path"
 #endif
 combine :: FILEPATH_NAME -> FILEPATH_NAME -> FILEPATH_NAME
 combine (CTOR a) (CTOR b) = CTOR $ C.combine a b
@@ -371,13 +436,19 @@ splitPath (CTOR bs) = fmap CTOR $ C.splitPath bs
 --
 -- >>> joinPath ["path","to","file.txt"]
 -- "path\to\file.txt"
-#else
+#elif defined POSIX
 -- | Join a split path back together
 --
 -- prop> \path -> joinPath (splitPath path) == path
 --
 -- >>> joinPath ["path","to","file.txt"]
 -- "path/to/file.txt"
+#else
+-- | Join a split path back together
+--
+-- > joinPath (splitPath path) == path
+-- > Windows: joinPath ["path","to","file.txt"] == "path\to\file.txt"
+-- > Posix: joinPath ["path","to","file.txt"] == "path/to/file.txt"
 #endif
 joinPath :: [FILEPATH_NAME] -> FILEPATH_NAME
 joinPath = foldr (</>) (CTOR mempty)
@@ -408,7 +479,7 @@ splitDirectories (CTOR x) = fmap CTOR $ C.splitDirectories x
 -- ["\"]
 -- >>> takeAllParents "/"
 -- []
-#else
+#elif defined POSIX
 -- |Get all parents of a path.
 --
 -- >>> takeAllParents "/abs/def/dod"
@@ -417,6 +488,15 @@ splitDirectories (CTOR x) = fmap CTOR $ C.splitDirectories x
 -- ["/"]
 -- >>> takeAllParents "/"
 -- []
+#else
+-- |Get all parents of a path.
+--
+-- > Windows: takeAllParents "C:\\foo\\bar" == ["C:","C:\foo"]
+-- > Windows: takeAllParents "/abs/def/dod" == ["\","\abs","\abs\def"]
+-- > Windows: takeAllParents "/foo" == ["\"]
+-- > Posix: takeAllParents "/abs/def/dod" == ["/","/abs","/abs/def"]
+-- > Posix: takeAllParents "/foo" == ["/"]
+-- > takeAllParents "/" == []
 #endif
 takeAllParents :: FILEPATH_NAME -> [FILEPATH_NAME]
 takeAllParents (CTOR p) = fmap CTOR $ C.takeAllParents p
@@ -440,9 +520,9 @@ takeAllParents (CTOR p) = fmap CTOR $ C.takeAllParents p
 -- ("","file")
 --
 -- prop> \x -> uncurry (<>) (splitDrive x) == x
-#else
+#elif defined POSIX
 -- | Split a path into a drive and a path.
---   On Posix, \/ is a Drive.
+--   \/ is a Drive.
 --
 -- >>> splitDrive "/test"
 -- ("/","test")
@@ -454,6 +534,18 @@ takeAllParents (CTOR p) = fmap CTOR $ C.takeAllParents p
 -- ("","file")
 --
 -- prop> \x -> uncurry (<>) (splitDrive x) == x
+#else
+-- | Split a path into a drive and a path.
+--   On Posix, \/ is a Drive.
+--
+-- > Windows: splitDrive "/test" == ("","/test")
+-- > Windows: splitDrive "C:\\file" == ("C:\","file")
+-- > Windows: splitDrive "//test" == ("//test","")
+-- > Posix: splitDrive "/test" == ("/","test")
+-- > Posix: splitDrive "//test" == ("//","test")
+-- > splitDrive "test/file" == ("","test/file")
+-- > splitDrive "file" == ("","file")
+-- > uncurry (<>) (splitDrive x) == x
 #endif
 splitDrive :: FILEPATH_NAME -> (FILEPATH_NAME, FILEPATH_NAME)
 splitDrive (CTOR p) = bimap CTOR CTOR $ C.splitDrive p
@@ -484,7 +576,7 @@ takeDrive (CTOR x) = CTOR $ C.takeDrive x
 -- False
 --
 -- prop> \x -> not (hasDrive x) == BS.null ((\(CTOR x) -> x) $ takeDrive x)
-#else
+#elif defined POSIX
 -- | Does a path have a drive.
 --
 -- >>> hasDrive "/foo"
@@ -493,6 +585,14 @@ takeDrive (CTOR x) = CTOR $ C.takeDrive x
 -- False
 --
 -- prop> \x -> not (hasDrive x) == BS.null ((\(CTOR x) -> x) $ takeDrive x)
+#else
+-- | Does a path have a drive.
+--
+-- > Windows: hasDrive "C:\\foo" == True
+-- > Windows: hasDrive "/foo" == False
+-- > Posix: hasDrive "/foo" == True
+-- > hasDrive "foo" == False
+-- > not (hasDrive x) == null (takeDrive x)
 #endif
 hasDrive :: FILEPATH_NAME -> Bool
 hasDrive (CTOR x) = C.hasDrive x
@@ -514,13 +614,20 @@ dropDrive (CTOR x) = CTOR $ C.dropDrive x
 -- False
 -- >>> isDrive "/foo"
 -- False
-#else
+#elif defined POSIX
 -- | Is an element a drive
 --
 -- >>> isDrive "/"
 -- True
 -- >>> isDrive "/foo"
 -- False
+#else
+-- | Is an element a drive
+--
+-- > Windows: isDrive "C:" == True
+-- > Windows: isDrive "/" == False
+-- > Posix: isDrive "/" == True
+-- > isDrive "/foo" == False
 #endif
 isDrive :: FILEPATH_NAME -> Bool
 isDrive (CTOR x) = C.isDrive x
@@ -550,7 +657,7 @@ hasTrailingPathSeparator (CTOR x) = C.hasTrailingPathSeparator x
 -- "/path/"
 -- >>> addTrailingPathSeparator "/"
 -- "/"
-#else
+#elif defined POSIX
 -- | Add a trailing path separator.
 --
 -- >>> addTrailingPathSeparator "/path"
@@ -559,6 +666,13 @@ hasTrailingPathSeparator (CTOR x) = C.hasTrailingPathSeparator x
 -- "/path/"
 -- >>> addTrailingPathSeparator "/"
 -- "/"
+#else
+-- | Add a trailing path separator.
+--
+-- > Windows: addTrailingPathSeparator "/path" == "/path\"
+-- > Posix: addTrailingPathSeparator "/path" == "/path/"
+-- > addTrailingPathSeparator "/path/" == "/path/"
+-- > addTrailingPathSeparator "/" == "/"
 #endif
 addTrailingPathSeparator :: FILEPATH_NAME -> FILEPATH_NAME
 addTrailingPathSeparator (CTOR bs) = CTOR $ C.addTrailingPathSeparator bs
@@ -575,7 +689,7 @@ addTrailingPathSeparator (CTOR bs) = CTOR $ C.addTrailingPathSeparator bs
 -- "/"
 -- >>> dropTrailingPathSeparator "//"
 -- "//"
-#else
+#elif defined POSIX
 -- | Remove a trailing path separator
 --
 -- >>> dropTrailingPathSeparator "/path/"
@@ -586,6 +700,14 @@ addTrailingPathSeparator (CTOR bs) = CTOR $ C.addTrailingPathSeparator bs
 -- "/"
 -- >>> dropTrailingPathSeparator "//"
 -- "/"
+#else
+-- | Remove trailing path separators
+--
+-- > dropTrailingPathSeparator "/path/" == "/path"
+-- > dropTrailingPathSeparator "/path////" == "/path"
+-- > dropTrailingPathSeparator "/" == "/"
+-- > Posix: dropTrailingPathSeparator "//" == "/"
+-- > Windows: dropTrailingPathSeparator "//" == "//"
 #endif
 dropTrailingPathSeparator :: FILEPATH_NAME -> FILEPATH_NAME
 dropTrailingPathSeparator (CTOR x) = CTOR $ C.dropTrailingPathSeparator x
@@ -625,7 +747,7 @@ dropTrailingPathSeparator (CTOR x) = CTOR $ C.dropTrailingPathSeparator x
 -- "bob\fred\"
 -- >>> normalise "//home"
 -- "\\home"
-#else
+#elif defined POSIX
 -- |Normalise a file.
 --
 -- >>> normalise "/file/\\test////"
@@ -654,6 +776,23 @@ dropTrailingPathSeparator (CTOR x) = CTOR $ C.dropTrailingPathSeparator x
 -- "bob/fred/"
 -- >>> normalise "//home"
 -- "/home"
+#else
+-- |Normalise a file path.
+--
+-- > Posix: normalise "/file/\\test////" == "/file/\test/"
+-- > Windows: normalise "/file/\\test////" == "\file\test\"
+-- > normalise "/file/./test" == "/file/test"
+-- > normalise "/test/file/../bob/fred/" == "/test/file/../bob/fred/"
+-- > normalise "../bob/fred/" == "../bob/fred/"
+-- > normalise "./bob/fred/" == "bob/fred/"
+-- > normalise "./bob////.fred/./...///./..///#." == "bob/.fred/.../../#."
+-- > normalise "." == "."
+-- > normalise "./" == "./"
+-- > normalise "./." == "./"
+-- > normalise "/./" == "/"
+-- > normalise "/" == "/"
+-- > normalise "bob/fred/." == "bob/fred/"
+-- > normalise "//home" == "/home"
 #endif
 normalise :: FILEPATH_NAME -> FILEPATH_NAME
 normalise (CTOR filepath) = CTOR $ C.normalise filepath
@@ -684,7 +823,7 @@ normalise (CTOR filepath) = CTOR $ C.normalise filepath
 -- prop> \p -> makeRelative p p == "."
 -- prop> \p -> makeRelative (takeDirectory p) p `equalFilePath` takeFileName p
 -- prop \x y -> equalFilePath x y || (isRelative x && makeRelative y x == x) || equalFilePath (y </> makeRelative y x) x
-#else
+#elif defined POSIX
 -- | Contract a filename, based on a relative path. Note that the resulting
 -- path will never introduce @..@ paths, as the presence of symlinks
 -- means @..\/b@ may not reach @a\/b@ if it starts from @a\/c@. For a
@@ -709,6 +848,24 @@ normalise (CTOR filepath) = CTOR $ C.normalise filepath
 -- prop> \p -> makeRelative p p == "."
 -- prop> \p -> makeRelative (takeDirectory p) p `equalFilePath` takeFileName p
 -- prop \x y -> equalFilePath x y || (isRelative x && makeRelative y x == x) || equalFilePath (y </> makeRelative y x) x
+#else
+-- | Contract a filename, based on a relative path. Note that the resulting
+-- path will never introduce @..@ paths, as the presence of symlinks
+-- means @..\/b@ may not reach @a\/b@ if it starts from @a\/c@. For a
+-- worked example see
+-- <http://neilmitchell.blogspot.co.uk/2015/10/filepaths-are-subtle-symlinks-are-hard.html this blog post>.
+--
+-- > Posix: makeRelative "/Home" "/home/bob" == "/home/bob"
+-- > Windows: makeRelative "/Home" "/home/bob" == "bob"
+-- > makeRelative "/directory" "/directory/file.ext" == "file.ext"
+-- > makeRelative "/home/" "/home/bob/foo/bar" == "bob/foo/bar"
+-- > makeRelative "/fred" "bob" == "bob"
+-- > makeRelative "/file/test" "/file/test/fred" == "fred"
+-- > makeRelative "/file/test" "/file/test/fred/" == "fred/"
+-- > makeRelative "some/path" "some/path/a/b/c" == "a/b/c"
+-- > makeRelative p p == "."
+-- > makeRelative (takeDirectory p) p `equalFilePath` takeFileName p
+-- > equalFilePath x y || (isRelative x && makeRelative y x == x) || equalFilePath (y </> makeRelative y x) x
 #endif
 makeRelative :: FILEPATH_NAME -> FILEPATH_NAME -> FILEPATH_NAME
 makeRelative (CTOR root) (CTOR path) = CTOR $ C.makeRelative root path
@@ -734,7 +891,7 @@ makeRelative (CTOR root) (CTOR path) = CTOR $ C.makeRelative root path
 -- False
 --
 -- prop> \p -> equalFilePath p p
-#else
+#elif defined POSIX
 -- |Equality of two filepaths. The filepaths are normalised
 -- and trailing path separators are dropped.
 --
@@ -754,6 +911,19 @@ makeRelative (CTOR root) (CTOR path) = CTOR $ C.makeRelative root path
 -- False
 --
 -- prop> \p -> equalFilePath p p
+#else
+-- |Equality of two filepaths. The filepaths are normalised
+-- and trailing path separators are dropped.
+--
+-- > Posix: equalFilePath "foo" "FOO" == False
+-- > Windows: equalFilePath "foo" "FOO" == False
+-- > equalFilePath "foo" "foo" == True
+-- > equalFilePath "foo" "foo/" == True
+-- > equalFilePath "foo" "./foo" == True
+-- > equalFilePath "" "" == True
+-- > equalFilePath "foo" "/foo" == False
+-- > equalFilePath "foo" "../foo" == False
+-- > equalFilePath p p == True
 #endif
 equalFilePath :: FILEPATH_NAME -> FILEPATH_NAME -> Bool
 equalFilePath (CTOR p1) (CTOR p2) = C.equalFilePath p1 p2
@@ -777,7 +947,7 @@ isRelative (CTOR x) = C.isRelative x
 -- False
 -- >>> isAbsolute ""
 -- False
-#else
+#elif defined POSIX
 -- | Check if a path is absolute
 --
 -- >>> isAbsolute "/path"
@@ -786,6 +956,14 @@ isRelative (CTOR x) = C.isRelative x
 -- False
 -- >>> isAbsolute ""
 -- False
+#else
+-- | Check if a path is absolute
+--
+-- > Windows: isAbsolute "C:\\path" == True
+-- > Windows: isAbsolute "/path" == False
+-- > Posix: isAbsolute "/path" == True
+-- > isAbsolute "path" == False
+-- > isAbsolute "" == False
 #endif
 isAbsolute :: FILEPATH_NAME -> Bool
 isAbsolute (CTOR x) = C.isAbsolute x
@@ -816,7 +994,7 @@ makeValid :: FILEPATH_NAME -> FILEPATH_NAME
 makeValid (CTOR path) = CTOR $ C.makeValid path
 
 
-#ifndef WINDOWS
+#ifdef POSIX
 -- | Whether the filename is a special directory entry
 -- (. and ..). Does not normalise filepaths.
 --
@@ -829,13 +1007,9 @@ makeValid (CTOR path) = CTOR $ C.makeValid path
 -- >>> isSpecialDirectoryEntry "/random_ path:*"
 -- False
 isSpecialDirectoryEntry :: FILEPATH_NAME -> Bool
-isSpecialDirectoryEntry (CTOR filepath)
-  | BS.pack [_period, _period] == filepath = True
-  | BS.pack [_period] == filepath          = True
-  | otherwise                              = False
+isSpecialDirectoryEntry (CTOR path) = C.isSpecialDirectoryEntry path
 #endif
 
-#ifndef WINDOWS
 -- | Is the given path a valid filename? This includes
 -- "." and "..".
 --
@@ -851,23 +1025,6 @@ isSpecialDirectoryEntry (CTOR filepath)
 -- False
 -- >>> isFileName "/random_path"
 -- False
-#else
--- | Is the given path a valid filename? This includes
--- "." and "..".
---
--- >>> isFileName "lal"
--- True
--- >>> isFileName "."
--- True
--- >>> isFileName ".."
--- True
--- >>> isFileName ""
--- False
--- >>> isFileName "\0"
--- False
--- >>> isFileName "/random_path"
--- False
-#endif
 isFileName :: FILEPATH_NAME -> Bool
 isFileName (CTOR filepath) = C.isFileName filepath
 
@@ -892,7 +1049,7 @@ hasParentDir :: FILEPATH_NAME -> Bool
 hasParentDir (CTOR filepath) = C.hasParentDir filepath
 
 
-#ifndef WINDOWS
+#ifdef POSIX
 -- | Whether the file is a hidden file.
 --
 -- This is only defined on POSIX.
