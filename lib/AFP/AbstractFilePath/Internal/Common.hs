@@ -88,12 +88,15 @@ type Word = Word8
 
 #ifdef WINDOWS
 -- $setup
+-- >>> :set -XFlexibleInstances
+-- >>> import Prelude hiding (Word)
+-- >>> import Data.ByteString.Short (ShortByteString)
 -- >>> import Data.Char
 -- >>> import Data.Maybe
 -- >>> import Data.Word8
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
--- >>> import AFP.AbstractFilePath.Internal.Types (PosixFilePath (..))
+-- >>> import AFP.AbstractFilePath.Internal.Types
 -- >>> import AFP.OsString.Internal.Types
 -- >>> import qualified AFP.Data.ByteString.Short.Word16 as BS
 -- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
@@ -107,12 +110,15 @@ type Word = Word8
 -- >>> let _chr :: Word -> Char; _chr = chr . fromIntegral
 #else
 -- $setup
+-- >>> :set -XFlexibleInstances
+-- >>> import Prelude hiding (Word)
+-- >>> import AFP.AbstractFilePath.Internal.Types
+-- >>> import Data.ByteString.Short (ShortByteString)
 -- >>> import Data.Char
 -- >>> import Data.Maybe
 -- >>> import Data.Word8
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
--- >>> import AFP.AbstractFilePath.Internal.Types (PosixFilePath (..))
 -- >>> import AFP.OsString.Internal.Types
 -- >>> import qualified Data.ByteString.Short as BS
 -- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary

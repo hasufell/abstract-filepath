@@ -1,188 +1,12 @@
 {-# LANGUAGE CPP #-}
 -- This template expects CPP definitions for:
---     MODULE_NAME   = Posix | Windows
---     IS_WINDOWS    = False | True
---     FILEPATH_NAME = PosixFilePath | WindowsFilePath
---     CTOR          = PS | WS
+--     WINDOWS
+--     FILEPATH_NAME = PosixFilePath | WindowsFilePath  | AbstractFilePath
+--     OSSTRING_NAME = PosixString   | WindowsString    | OsString
+--     WORD_NAME     = PosixWord     | WindowsWord      | OsWord
+--     WTOR          = PW            | WW               | OsWord
+--     CTOR          = PS            | WS               | OsString
 
-module AFP.AbstractFilePath.MODULE_NAME
-  (
-  -- * Types
-#ifdef WINDOWS
-    WindowsString
-  , WindowsWord
-  , WindowsFilePath
-#else
-    PosixString
-  , PosixWord
-  , PosixFilePath
-#endif
-  -- * String construction
-  , toPlatformString
-  , toPlatformStringIO
-  , bsToPlatformString
-  , pstr
-  , packPlatformString
-
-  -- * String deconstruction
-  , fromPlatformString
-  , fromPlatformStringIO
-  , unpackPlatformString
-
-  -- * Word construction
-  , fromChar
-
-  -- * Separator predicates
-  , pathSeparator
-  , pathSeparators
-  , isPathSeparator
-  , searchPathSeparator
-  , isSearchPathSeparator
-  , extSeparator
-  , isExtSeparator
-
-  -- * $PATH methods
-  , splitSearchPath
-
-  -- * Extension functions
-  , takeExtension
-  , replaceExtension
-  , dropExtension
-  , addExtension
-  , hasExtension
-  , (<.>)
-  , splitExtensions
-  , dropExtensions
-  , takeExtensions
-  , splitExtension
-  , stripExtension
-
-  -- * Filename\/directory functions
-  , splitFileName
-  , takeFileName
-  , replaceFileName
-  , dropFileName
-  , takeBaseName
-  , replaceBaseName
-  , takeDirectory
-  , replaceDirectory
-  , combine
-  , (</>)
-  , splitPath
-  , joinPath
-  , splitDirectories
-  , takeAllParents
-
-  -- * Drive functions
-  , splitDrive
-  , joinDrive
-  , takeDrive
-  , hasDrive
-  , dropDrive
-  , isDrive
-
-  -- * Trailing slash functions
-  , hasTrailingPathSeparator
-  , addTrailingPathSeparator
-  , dropTrailingPathSeparator
-
-  -- * File name manipulations
-  , normalise
-  , makeRelative
-  , equalFilePath
-  , isRelative
-  , isAbsolute
-  , isValid
-  , makeValid
-  , isFileName
-  , hasParentDir
-
-#ifndef WINDOWS
-  -- * posix specific functions
-  , hiddenFile
-  , isSpecialDirectoryEntry
-#endif
-  )
-where
-
--- doctest
-import AFP.AbstractFilePath.Internal.Types
-    ()
-
-import qualified AFP.AbstractFilePath.Internal.MODULE_NAME as IP
-import AFP.AbstractFilePath.Internal.Types
-import AFP.OsString.Internal.Types
-
-import AFP.OsString.MODULE_NAME (
-    toPlatformString
-  , toPlatformStringIO
-  , bsToPlatformString
-  , pstr
-  , packPlatformString
-  , fromPlatformString
-  , fromPlatformStringIO
-  , unpackPlatformString
-  , fromChar
-  )
-
-
-import Control.Arrow
-    ( second )
-import Data.Bifunctor
-    ( bimap, first )
-import Data.ByteString
-    ( ByteString )
-import Data.ByteString.Short
-    ( ShortByteString )
-import Data.Maybe
-    ( isJust )
-import Data.Word8
-    ( Word8, _colon, _nul, _period, _slash, _underscore )
-
-import qualified AFP.AbstractFilePath.Internal.MODULE_NAME as C
-#ifdef WINDOWS
-import qualified AFP.Data.ByteString.Short.Word16 as BS
-#else
-import qualified AFP.Data.ByteString.Short as BS
-#endif
-
-
-#ifdef WINDOWS
--- $setup
--- >>> import Data.Char
--- >>> import Data.Maybe
--- >>> import Data.Word8
--- >>> import Test.QuickCheck
--- >>> import Control.Applicative
--- >>> import AFP.AbstractFilePath.Internal.Types
--- >>> import AFP.Data.ByteString.Short as BS (concat)
--- >>> import qualified AFP.Data.ByteString.Short.Word16 as BS
--- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
--- >>> instance CoArbitrary ShortByteString where coarbitrary = coarbitrary . BS.unpack
--- >>> instance Arbitrary WindowsFilePath where arbitrary = WS <$> arbitrary
--- >>> instance CoArbitrary WindowsFilePath where coarbitrary = coarbitrary . (\(WS fp) -> fp)
--- >>> import AFP.OsString.Internal.Types (WindowsString (..))
--- >>> instance Arbitrary ShortByteString where arbitrary = sized $ \n -> choose (0,n) >>= \k -> fmap BS.pack $ vectorOf (if even k then k else k + 1) arbitrary
--- >>> instance Arbitrary WindowsString where arbitrary = WS <$> arbitrary
--- >>> let _chr :: Word -> Char; _chr = chr . fromIntegral
-#else
--- $setup
--- >>> import Data.Char
--- >>> import Data.Maybe
--- >>> import Data.Word8
--- >>> import Test.QuickCheck
--- >>> import Control.Applicative
--- >>> import AFP.AbstractFilePath.Internal.Types
--- >>> import qualified Data.ByteString.Short as BS
--- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
--- >>> instance CoArbitrary ShortByteString where coarbitrary = coarbitrary . BS.unpack
--- >>> instance Arbitrary PosixFilePath where arbitrary = PS <$> arbitrary
--- >>> instance CoArbitrary PosixFilePath where coarbitrary = coarbitrary . (\(PS fp) -> fp)
--- >>> import AFP.OsString.Internal.Types (PosixString (..))
--- >>> instance Arbitrary ShortByteString where arbitrary = sized $ \n -> choose (0,n) >>= \k -> fmap BS.pack $ vectorOf (if even k then k else k + 1) arbitrary
--- >>> instance Arbitrary PosixString where arbitrary = PS <$> arbitrary
--- >>> let _chr :: Word -> Char; _chr = chr . fromIntegral
-#endif
 
 
 ------------------------
@@ -191,49 +15,53 @@ import qualified AFP.Data.ByteString.Short as BS
 
 -- | Ideal path separator character
 pathSeparator :: WORD_NAME
-pathSeparator = WTOR IP.pathSeparator
+pathSeparator = WTOR C.pathSeparator
 
 -- | All path separator characters
 pathSeparators :: [WORD_NAME]
-pathSeparators = WTOR <$> IP.pathSeparators
+pathSeparators = WTOR <$> C.pathSeparators
 
 -- | Check if a character is the path separator
 --
 -- >  (n == '/') == isPathSeparator n
 isPathSeparator :: WORD_NAME -> Bool
-isPathSeparator (WTOR w) = IP.isPathSeparator w
+isPathSeparator (WTOR w) = C.isPathSeparator w
 
 -- | Search path separator
 searchPathSeparator :: WORD_NAME
-searchPathSeparator = WTOR IP.searchPathSeparator
+searchPathSeparator = WTOR C.searchPathSeparator
 
 -- | Check if a character is the search path separator
 --
 -- > (n == ':') == isSearchPathSeparator n
 isSearchPathSeparator :: WORD_NAME -> Bool
-isSearchPathSeparator (WTOR w) = IP.isSearchPathSeparator w
+isSearchPathSeparator (WTOR w) = C.isSearchPathSeparator w
 
 
 -- | File extension separator
 extSeparator :: WORD_NAME
-extSeparator = WTOR IP.extSeparator
+extSeparator = WTOR C.extSeparator
 
 
 -- | Check if a character is the file extension separator
 --
 -- > (n == '.') == isExtSeparator n
 isExtSeparator :: WORD_NAME -> Bool
-isExtSeparator (WTOR w) = IP.isExtSeparator w
+isExtSeparator (WTOR w) = C.isExtSeparator w
 
 
 ------------------------
 -- $PATH methods
 
 
-#ifdef WINDOWS
--- | Take a string, split it on the 'searchPathSeparator'.
--- Path elements are stripped of quotes.
+-- | Take an 'OsString', split it on the 'searchPathSeparator'.
+-- On Windows path elements are stripped of quotes.
+-- On Posix blank items are converted to @.@.
 --
+-- Follows the recommendations in
+-- <http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html>
+--
+#ifdef WINDOWS
 -- >>> splitSearchPath "File1;File2;File3"
 -- ["File1","File2","File3"]
 -- >>> splitSearchPath "File1;;File2;File3"
@@ -243,12 +71,6 @@ isExtSeparator (WTOR w) = IP.isExtSeparator w
 -- >>> splitSearchPath ""
 -- []
 #else
--- | Take a string, split it on the 'searchPathSeparator'.
--- Blank items are converted to @.@.
---
--- Follows the recommendations in
--- <http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html>
---
 -- >>> splitSearchPath "File1:File2:File3"
 -- ["File1","File2","File3"]
 -- >>> splitSearchPath "File1::File2:File3"
