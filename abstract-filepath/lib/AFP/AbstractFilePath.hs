@@ -33,7 +33,7 @@
 -- - On /Windows/ the <https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions naming convention> may apply
 -- - On /Unix/, only @NUL@ bytes are disallowed as per the <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170 POSIX specification>
 --
--- Use 'filePathIsValid' to check for these restrictions ('AbstractFilePath' doesn't
+-- Use 'isValid' to check for these restrictions ('AbstractFilePath' doesn't
 -- maintain this invariant).
 --
 -- Also note that these restrictions are
@@ -55,7 +55,7 @@
 --    mentions that it requires a UTF8 compatible system. These things should be documented.
 -- 3. When dealing with user input (e.g. on the command line) on /unix/ as e.g. @String@ the input
 --    encoding is lost. The output encoding (e.g. how we write a filename to disk) can then
---    either follow the current locale again ('toAbstractFilePath'') or a fixed encoding
+--    either follow the current locale again ('toAbstractFilePathIO') or a fixed encoding
 --    ('toAbstractFilePath'). The decision should be clearly documented. If the input is in the
 --    form of a @ByteString@, then 'bsToAFP' may be of interest, unless the input needs further
 --    interpretation.

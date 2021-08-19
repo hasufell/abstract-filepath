@@ -109,16 +109,15 @@ type PlatformChar = PosixChar
 #endif
 
 
--- | Newtype representing operating system specific strings.
+-- | Newtype representing short operating system specific strings.
 --
--- Internally this is either 'WindowsFilePath' or 'PosixFilePath',
+-- Internally this is either 'WindowsString or 'PosixString,
 -- depending on the platform. Both use unpinned
--- 'ShortByteString' for efficiency and correctness.
+-- 'ShortByteString' for efficiency.
 --
 -- The constructor is only exported via "AFP.OsString.Internal.Types", since
 -- dealing with the internals isn't generally recommended, but supported
--- in case you need to write platform specific code, such as the implementation
--- of 'fromAbstractFilePath'.
+-- in case you need to write platform specific code.
 newtype OsString = OsString PlatformString
 
 -- | Byte equality of the internal representation.

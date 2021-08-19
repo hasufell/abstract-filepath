@@ -7,7 +7,7 @@
 -- Stability   :  experimental
 -- Portability :  portable
 --
--- An implementation of platform specific 'OsString', which is:
+-- An implementation of platform specific short 'OsString', which is:
 --
 -- 1. on windows UTF16 data
 -- 2. on unix UTF8 data
