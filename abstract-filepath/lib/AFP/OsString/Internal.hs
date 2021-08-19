@@ -129,7 +129,7 @@ fromChar = OsChar . PF.fromChar
 
 -- | Converts back to a unicode codepoint (total).
 toChar :: OsChar -> Char
-#ifdef WINDOWS
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 toChar (OsChar (WW w)) = chr $ fromIntegral w
 #else
 toChar (OsChar (PW w)) = chr $ fromIntegral w

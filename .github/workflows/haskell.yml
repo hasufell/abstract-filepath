@@ -14,12 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
-        ghc: ['8.2.2', '8.4.4', '8.6.5', '8.8.4', '8.10.4']
-        cabal: ['3.2.0.0']
+        ghc: ['8.2.2', '8.4.4', '8.6.5', '8.8.4', '8.10.5']
+        cabal: ['3.4.0.0']
 
     steps:
     - uses: actions/checkout@v2
-    - uses: haskell/actions/setup@v1.2
+    - uses: haskell/actions/setup@v1.2.3
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: ${{ matrix.cabal }}
@@ -53,11 +53,14 @@ jobs:
       run: cabal install --installdir="$HOME/.local/bin" --install-method=copy --overwrite-policy=always hspec-discover
       shell: bash
 
-    - name: Install cabal-docspec
+    - if: matrix.os == 'ubuntu-latest'
+      name: Install cabal-docspec
       run: |
-        git clone https://github.com/phadej/cabal-extras.git
-        cd cabal-extras/cabal-docspec
-        cabal install --installdir="$HOME/.local/bin" --install-method=copy --overwrite-policy=always
+        curl -sL https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20210111/cabal-docspec-0.0.0.20210111.xz > cabal-docspec.xz
+        echo '0829bd034fba901cbcfe491d98ed8b28fd54f9cb5c91fa8e1ac62dc4413c9562  cabal-docspec.xz' | sha256sum -c -
+        xz -d < cabal-docspec.xz > $HOME/.local/bin/cabal-docspec
+        rm -f cabal-docspec.xz
+        chmod a+x $HOME/.local/bin/cabal-docspec
       shell: bash
 
     - name: Build
@@ -65,9 +68,12 @@ jobs:
       shell: bash
 
     - name: Run tests
-      run: |
-        cabal test abstract-filepath:spec
-        cabal-docspec -XCPP -XTypeSynonymInstances -XOverloadedStrings abstract-filepath
+      run: cabal test abstract-filepath:spec
+      shell: bash
+
+    - if: matrix.os == 'ubuntu-latest'
+      name: Run doctests
+      run: cabal-docspec -XCPP -XTypeSynonymInstances -XOverloadedStrings abstract-filepath
       shell: bash
 
     - name: Build haddock

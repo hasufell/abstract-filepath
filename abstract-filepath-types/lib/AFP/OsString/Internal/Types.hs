@@ -135,7 +135,7 @@ instance Ord OsString where
 
 -- | Encodes as UTF16 on windows and UTF8 on unix.
 instance IsString OsString where 
-#ifdef WINDOWS
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
     fromString = OsString . WS . encodeUtf16LE
 #else
     fromString = OsString . PS . encodeUtf8

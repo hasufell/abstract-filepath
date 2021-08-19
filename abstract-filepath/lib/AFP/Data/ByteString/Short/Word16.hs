@@ -146,10 +146,6 @@ import Data.ByteString.Short
     , empty
     , index
     , null
-    , packCString
-    , packCStringLen
-    , useAsCString
-    , useAsCStringLen
     )
 import GHC.Exts
 import GHC.Word

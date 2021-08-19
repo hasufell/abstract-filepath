@@ -6,6 +6,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UnliftedFFITypes #-}
 
 module AFP.Data.ByteString.Short
   (
@@ -142,16 +143,19 @@ import Data.ByteString.Short
     , length
     , null
     , pack
-    , packCString
-    , packCStringLen
     , toShort
     , unpack
+#if MIN_VERSION_bytestring(0,10,9)
+    , packCString
+    , packCStringLen
     , useAsCString
     , useAsCStringLen
+#endif
     )
 import Data.ByteString.Short.Internal
     ( createFromPtr )
 import Data.Word8
+
 
 import qualified Data.ByteString.Short as BS
 import qualified Data.ByteString.Short.Internal as BS
@@ -863,3 +867,4 @@ writeWord8Array :: MBA s -> Int -> Word8 -> ST s ()
 writeWord8Array (MBA# mba#) (I# i#) (W8# w#) =
   ST $ \s -> case writeWord8Array# mba# i# w# s of
                s' -> (# s', () #)
+
