@@ -114,7 +114,6 @@ import AFP.Data.Word16
 
 import Data.Bifunctor
     ( first, bimap )
-import qualified Data.DList as DL
 import Prelude hiding
     ( all
     , any
@@ -193,6 +192,7 @@ unpack = unpackBytes . assertEven
 -- ---------------------------------------------------------------------
 -- Basic interface
 
+-- | This is the number of 'Word16', not 'Word8'.
 length :: ShortByteString -> Int
 length = (`div` 2) . BS.length . assertEven
 
@@ -267,7 +267,18 @@ init = \(assertEven -> sbs) ->
 -- | /O(n)/ 'map' @f xs@ is the ShortByteString obtained by applying @f@ to each
 -- element of @xs@.
 map :: (Word16 -> Word16) -> ShortByteString -> ShortByteString
-map f = pack . fmap f . unpack . assertEven
+map f (assertEven -> sbs) =
+    let l = length sbs
+        ba = asBA sbs
+    in create (l * 2) (\mba -> go ba mba 0 l)
+  where
+    go :: BA -> MBA s -> Int -> Int -> ST s ()
+    go !ba !mba !i !l
+      | i >= l = return ()
+      | otherwise = do
+          let w = indexWord16Array ba i
+          writeWord16Array mba i (f w)
+          go ba mba (i+1) l
 
 
 -- ---------------------------------------------------------------------
@@ -329,11 +340,11 @@ replicate w c
 -- > == pack [0, 1, 2, 3, 4, 5]
 --
 unfoldr :: (a -> Maybe (Word16, a)) -> a -> ShortByteString
-unfoldr f x0 = pack . DL.toList $ go x0 mempty
+unfoldr f x0 = packBytesRev $ go x0 mempty
  where
    go x words = case f x of
                     Nothing -> words
-                    Just (w, x') -> go x' (DL.snoc words w)
+                    Just (w, x') -> go x' (w:words)
 {-# INLINE unfoldr #-}
 
 -- | /O(n)/ Like 'unfoldr', 'unfoldrN' builds a ShortByteString from a seed
@@ -346,14 +357,15 @@ unfoldr f x0 = pack . DL.toList $ go x0 mempty
 -- > fst (unfoldrN n f s) == take n (unfoldr f s)
 --
 unfoldrN :: Int -> (a -> Maybe (Word16, a)) -> a -> (ShortByteString, Maybe a)
-unfoldrN i f x0 = first (pack . DL.toList) $ go i x0 mempty
+unfoldrN i f x0 = first packBytesRev $ go i x0 mempty
  where
    go i' x words
     | i' < 0     = (words, Just x)
     | otherwise = case f x of
                     Nothing -> (words, Nothing)
-                    Just (w, x') -> go (i' - 1) x' (DL.snoc words w)
+                    Just (w, x') -> go (i' - 1) x' (w:words)
 {-# INLINE unfoldrN #-}
+
 
 
 -- ---------------------------------------------------------------------
@@ -661,6 +673,19 @@ packLenBytes len ws0 =
     go !mba !i (w:ws) = do
       writeWord16Array mba i w
       go mba (i+1) ws
+
+packBytesRev :: [Word16] -> ShortByteString
+packBytesRev cs = packLenBytesRev (List.length cs) cs
+
+packLenBytesRev :: Int -> [Word16] -> ShortByteString
+packLenBytesRev len ws0 =
+    create (len * 2) (\mba -> go mba len ws0)
+  where
+    go :: MBA s -> Int -> [Word16] -> ST s ()
+    go !_   !_ []     = return ()
+    go !mba !i (w:ws) = do
+      writeWord16Array mba (i - 1) w
+      go mba (i - 1) ws
 
 
 unpackBytes :: ShortByteString -> [Word16]

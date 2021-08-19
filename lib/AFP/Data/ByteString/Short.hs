@@ -168,7 +168,6 @@ import Data.ByteString.Internal
 import GHC.List (errorEmptyList)
 import GHC.Exts (IsList (..))
 import qualified Data.Primitive.ByteArray as BA
-import qualified Data.DList as DL
 import Control.Monad (void)
 import Data.Bifunctor
     ( first, bimap )
@@ -304,7 +303,18 @@ init = \sbs ->
 -- | /O(n)/ 'map' @f xs@ is the ShortByteString obtained by applying @f@ to each
 -- element of @xs@.
 map :: (Word8 -> Word8) -> ShortByteString -> ShortByteString
-map f = BS.pack . fmap f . BS.unpack
+map f sbs =
+    let l = length sbs
+        ba = asBA sbs
+    in create l (\mba -> go ba mba 0 l)
+  where
+    go :: BA -> MBA s -> Int -> Int -> ST s ()
+    go !ba !mba !i !l
+      | i >= l = return ()
+      | otherwise = do
+          let w = indexWord8Array ba i
+          writeWord8Array mba i (f w)
+          go ba mba (i+1) l
 
 -- | /O(n)/ The 'intercalate' function takes a 'ShortByteString' and a list of
 -- 'ShortByteString's and concatenates the list after interspersing the first
@@ -602,11 +612,11 @@ replicate w c
 -- > == pack [0, 1, 2, 3, 4, 5]
 --
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ShortByteString
-unfoldr f x0 = pack . DL.toList $ go x0 mempty
+unfoldr f x0 = packBytesRev $ go x0 mempty
  where
    go x words = case f x of
                     Nothing -> words
-                    Just (w, x') -> go x' (DL.snoc words w)
+                    Just (w, x') -> go x' (w:words)
 {-# INLINE unfoldr #-}
 
 -- | /O(n)/ Like 'unfoldr', 'unfoldrN' builds a ShortByteString from a seed
@@ -619,13 +629,13 @@ unfoldr f x0 = pack . DL.toList $ go x0 mempty
 -- > fst (unfoldrN n f s) == take n (unfoldr f s)
 --
 unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ShortByteString, Maybe a)
-unfoldrN i f x0 = first (pack . DL.toList) $ go i x0 mempty
+unfoldrN i f x0 = first packBytesRev $ go i x0 mempty
  where
    go i' x words
     | i' < 0     = (words, Just x)
     | otherwise = case f x of
                     Nothing -> (words, Nothing)
-                    Just (w, x') -> go (i' - 1) x' (DL.snoc words w)
+                    Just (w, x') -> go (i' - 1) x' (w:words)
 {-# INLINE unfoldrN #-}
 
 
@@ -860,6 +870,20 @@ findIndexOrLength k sbs = go 0
           | k (w n)   = n
           | otherwise = go (n + 1)
 {-# INLINE findIndexOrLength #-}
+
+
+packBytesRev :: [Word8] -> ShortByteString
+packBytesRev cs = packLenBytesRev (List.length cs) cs
+
+packLenBytesRev :: Int -> [Word8] -> ShortByteString
+packLenBytesRev len ws0 =
+    create len (\mba -> go mba len ws0)
+  where
+    go :: MBA s -> Int -> [Word8] -> ST s ()
+    go !_   !_ []     = return ()
+    go !mba !i (w:ws) = do
+      writeWord8Array mba (i - 1) w
+      go mba (i - 1) ws
 
 
 breakByte :: Word8 -> ShortByteString -> (ShortByteString, ShortByteString)

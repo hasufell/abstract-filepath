@@ -47,7 +47,6 @@ library
   build-depends:
     , base              >=4.10    && <5
     , bytestring        ^>=0.10
-    , dlist
     , exceptions        ^>=0.10
     , primitive
     , template-haskell  >=2.16    && <2.20
@@ -69,7 +68,6 @@ test-suite abstract-filepath-test
     , abstract-filepath
     , base               >=4.10    && <5
     , checkers           ^>=0.5.6
-    , dlist
     , hspec              ^>=2.8.2
     , hspec-checkers     ^>=0.1.0.2
     , QuickCheck         ^>=2.14.2
@@ -82,7 +80,6 @@ test-suite doctest
   build-depends:
     , abstract-filepath
     , base               >=4.10 && <5
-    , dlist
     , doctest
 
 benchmark abstract-filepath-bench
@@ -98,7 +95,6 @@ benchmark abstract-filepath-bench
   build-depends:    base,
                     bytestring,
                     deepseq,
-                    dlist,
                     tasty-bench,
                     random,
                     abstract-filepath
