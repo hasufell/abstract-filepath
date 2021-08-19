@@ -142,7 +142,7 @@ instance IsString OsString where
 #endif
 
 
--- | \"String-Concatenation\" for 'AbstractFilePath'. This is __not__ the same
+-- | \"String-Concatenation\" for 'OsString. This is __not__ the same
 -- as '(</>)'.
 instance Monoid OsString where 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
@@ -182,8 +182,10 @@ instance Show OsString where
 #endif
 
 
--- | Newtype representing operating system Word with respect to
--- the encoding. On Windows, this is 'Word16', on POSIX 'Word8'.
+-- | Newtype representing a limited Codepoint.
+--
+-- On Windows, this is restricted to two-octet codepoints 'Word16',
+-- on POSIX one-octet ('Word8').
 newtype OsChar = OsChar PlatformChar
   deriving Show
 
