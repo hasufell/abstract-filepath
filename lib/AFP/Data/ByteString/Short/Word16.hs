@@ -615,7 +615,7 @@ elemIndices k = findIndices (==k)
 findIndex :: (Word16 -> Bool) -> ShortByteString -> Maybe Int
 findIndex k sbs = go 0
   where
-    l = BS.length sbs
+    l = length sbs
     ba = asBA sbs
     w = indexWord16Array ba
     go !n | n >= l    = Nothing
@@ -628,7 +628,7 @@ findIndex k sbs = go 0
 findIndices :: (Word16 -> Bool) -> ShortByteString -> [Int]
 findIndices k sbs = go 0
   where
-    l = BS.length sbs
+    l = length sbs
     ba = asBA sbs
     w = indexWord16Array ba
     go !n | n >= l    = []
