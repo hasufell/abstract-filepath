@@ -7,7 +7,6 @@ cabal.project.local~
 cabal.sandbox.config
 config.log
 config.status
-configure
 dist/
 dist-install/
 dist-newstyle/

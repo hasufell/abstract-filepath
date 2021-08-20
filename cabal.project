@@ -1,3 +1,5 @@
 packages: ./abstract-filepath-types
           ./abstract-filepath
           ./abstract-filepath-unix
+          ./abstract-filepath-bytestring
+          ./abstract-filepath-word16

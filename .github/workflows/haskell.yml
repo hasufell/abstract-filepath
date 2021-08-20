@@ -65,7 +65,7 @@ jobs:
 
     - if: matrix.os == 'windows-latest'
       name: Build
-      run: cabal build --enable-tests --enable-benchmarks abstract-filepath abstract-filepath-types
+      run: cabal build --enable-tests --enable-benchmarks abstract-filepath abstract-filepath-types abstract-filepath-word16 abstract-filepath-bytestring
       shell: bash
 
     - if: matrix.os != 'windows-latest'
@@ -83,12 +83,12 @@ jobs:
       shell: bash
 
     - name: Run benches
-      run: cabal bench abstract-filepath
+      run: cabal bench abstract-filepath-bytestring
       shell: bash
 
     - if: matrix.os == 'windows-latest'
       name: Build haddock
-      run: cabal haddock abstract-filepath abstract-filepath-types
+      run: cabal haddock abstract-filepath abstract-filepath-types abstract-filepath-word16 abstract-filepath-bytestring
       shell: bash
 
     - if: matrix.os != 'windows-latest'
@@ -133,7 +133,7 @@ jobs:
 
     - if: matrix.os == 'windows-latest'
       name: Build
-      run: stack build abstract-filepath abstract-filepath-types
+      run: stack build abstract-filepath abstract-filepath-types abstract-filepath-word16 abstract-filepath-bytestring
       shell: bash
 
     - if: matrix.os != 'windows-latest'
@@ -146,5 +146,5 @@ jobs:
       shell: bash
 
     - name: Run benches
-      run: stack bench abstract-filepath
+      run: stack bench abstract-filepath-bytestring
       shell: bash
