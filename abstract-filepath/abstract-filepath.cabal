@@ -5,16 +5,20 @@ license:            MIT
 license-file:       LICENSE
 maintainer:         hasufell@posteo.de
 author:             Julian Ospald
+bug-reports:        https://github.com/hasufell/abstract-filepath/issues
 synopsis:           Abstract cross-platform FilePath
 description:
   This is a user-space implementation of the Abstract FilePath Proposal (AFPP) authored by Herbert Valerio Riedel, Neil Mitchell & Michael Snoyman.
-tested-with:    GHC==9.0.1,
-                GHC==8.10.6,
-                GHC==8.8.4,
-                GHC==8.6.5,
-                GHC==8.4.4,
-                GHC==8.2.2,
-                GHC==8.0.2
+
+tested-with:
+  GHC ==8.0.2
+   || ==8.2.2
+   || ==8.4.4
+   || ==8.6.5
+   || ==8.8.4
+   || ==8.10.6
+   || ==9.0.1
+
 category:           System
 extra-source-files:
   lib/AFP/AbstractFilePath/Common.hs

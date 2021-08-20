@@ -145,12 +145,6 @@ import Data.ByteString.Short
     , pack
     , toShort
     , unpack
-#if MIN_VERSION_bytestring(0,10,9)
-    , packCString
-    , packCStringLen
-    , useAsCString
-    , useAsCStringLen
-#endif
     )
 import Data.ByteString.Short.Internal
     ( createFromPtr )

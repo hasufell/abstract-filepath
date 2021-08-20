@@ -8,13 +8,15 @@ author:          Julian Ospald
 synopsis:        Abstract cross-platform FilePath types
 description:
   This is a user-space implementation of the Abstract FilePath Proposal (AFPP) authored by Herbert Valerio Riedel, Neil Mitchell & Michael Snoyman. This package contains only the raw types with a minimal dependency footprint.
-tested-with:    GHC==9.0.1,
-                GHC==8.10.6,
-                GHC==8.8.4,
-                GHC==8.6.5,
-                GHC==8.4.4,
-                GHC==8.2.2,
-                GHC==8.0.2
+
+tested-with:
+  GHC ==8.0.2
+   || ==8.2.2
+   || ==8.4.4
+   || ==8.6.5
+   || ==8.8.4
+   || ==8.10.6
+   || ==9.0.1
 
 category:        System
 extra-doc-files: CHANGELOG.md
