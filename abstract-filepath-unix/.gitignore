@@ -13,7 +13,6 @@ dist-newstyle/
 .ghc.environment.*
 ghc.mk
 include/HsUnixConfig.h
-include/HsUnixConfig.h.in
 unix.buildinfo
 tests/.hpc.*
 tests/*.eventlog
