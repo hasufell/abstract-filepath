@@ -14,11 +14,24 @@
 --
 -----------------------------------------------------------------------------
 
-module System.Win32.Types
-        ( module System.Win32.Types
+module System.Win32.WindowsString.Types
+        ( module System.Win32.WindowsString.Types
         , nullPtr
         ) where
 
+import AFP.OsString.Windows
+import AFP.OsString.Internal.Types
+import AFP.Data.ByteString.Short.Word16 ( 
+  -- * Low level conversions
+  -- ** Packing 'CString's and pointers
+  packCWString,
+  packCWStringLen,
+
+  -- ** Using ShortByteStrings as 'CString's
+  useAsCWString,
+  useAsCWStringLen,
+  newCWString
+  )
 import Control.Concurrent.MVar (readMVar)
 import Control.Exception (bracket, throwIO)
 import Data.Bits (shiftL, shiftR, (.|.), (.&.))
@@ -28,8 +41,6 @@ import Data.Maybe (fromMaybe)
 import Data.Typeable (cast)
 import Data.Word (Word8, Word16, Word32, Word64)
 import Foreign.C.Error (Errno(..), errnoToIOError)
-import Foreign.C.String (newCWString, withCWStringLen)
-import Foreign.C.String (peekCWString, peekCWStringLen, withCWString)
 import Foreign.C.Types (CChar, CUChar, CWchar, CInt(..), CIntPtr(..), CUIntPtr)
 import Foreign.ForeignPtr (ForeignPtr, newForeignPtr, newForeignPtr_)
 import Foreign.Ptr (FunPtr, Ptr, nullPtr, ptrToIntPtr)
@@ -172,19 +183,19 @@ type MbLPCTSTR     = Maybe LPCTSTR
 -- Chars and strings
 ----------------------------------------------------------------
 
-withTString    :: String -> (LPTSTR -> IO a) -> IO a
-withTStringLen :: String -> ((LPTSTR, Int) -> IO a) -> IO a
-peekTString    :: LPCTSTR -> IO String
-peekTStringLen :: (LPCTSTR, Int) -> IO String
-newTString     :: String -> IO LPCTSTR
+withTString    :: WindowsString -> (LPTSTR -> IO a) -> IO a
+withTStringLen :: WindowsString -> ((LPTSTR, Int) -> IO a) -> IO a
+peekTString    :: LPCTSTR -> IO WindowsString
+peekTStringLen :: (LPCTSTR, Int) -> IO WindowsString
+newTString     :: WindowsString -> IO LPCTSTR
 
 -- UTF-16 version:
 type TCHAR     = CWchar
-withTString    = withCWString
-withTStringLen = withCWStringLen
-peekTString    = peekCWString
-peekTStringLen = peekCWStringLen
-newTString     = newCWString
+withTString    = useAsCWString . unWFP
+withTStringLen = useAsCWStringLen . unWFP
+peekTString    = fmap WS . packCWString
+peekTStringLen = fmap WS . packCWStringLen
+newTString     = newCWString . unWFP
 
 {- ANSI version:
 type TCHAR     = CChar
@@ -377,8 +388,8 @@ errorWin fn_name = do
 failWith :: String -> ErrCode -> IO a
 failWith fn_name err_code = do
   c_msg <- getErrorMessage err_code
-  msg <- if c_msg == nullPtr
-           then return $ "Error 0x" ++ Numeric.showHex err_code ""
+  msg <- fromPlatformString =<< if c_msg == nullPtr
+           then return $ toPlatformString $ "Error 0x" ++ Numeric.showHex err_code ""
            else do msg <- peekTString c_msg
                    -- We ignore failure of freeing c_msg, given we're already failing
                    _ <- localFree c_msg
@@ -410,7 +421,7 @@ dwordsToDdword (hi,low) = (fromIntegral low) .|. (fromIntegral hi `shiftL` finit
 -- Support for API calls that are passed a fixed-size buffer and tell
 -- you via the return value if the buffer was too small.  In that
 -- case, we double the buffer size and try again.
-try :: String -> (LPTSTR -> UINT -> IO UINT) -> UINT -> IO String
+try :: String -> (LPTSTR -> UINT -> IO UINT) -> UINT -> IO WindowsString
 try loc f n = do
    e <- allocaArray (fromIntegral n) $ \lptstr -> do
           r <- failIfZero loc $ f lptstr n

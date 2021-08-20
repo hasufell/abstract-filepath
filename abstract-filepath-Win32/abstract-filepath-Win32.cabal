@@ -45,6 +45,9 @@ library
   build-depends:
       base      >=4.5 && <5
     , filepath
+    , abstract-filepath-types
+    , abstract-filepath
+    , abstract-filepath-bytestring
 
   -- Black list hsc2hs 0.68.6 which is horribly broken.
   build-tool-depends: hsc2hs:hsc2hs >0 && <0.68.6 || >0.68.6
@@ -63,6 +66,7 @@ library
     System.Win32.SymbolicLink
     System.Win32.Time
     System.Win32.Types
+    System.Win32.WindowsString.Types
     System.Win32.Utils
     System.Win32.Word
 

@@ -53,7 +53,7 @@ freeLibrary hmod =
 foreign import WINDOWS_CCONV unsafe "windows.h FreeLibrary"
   c_FreeLibrary :: HMODULE -> IO Bool
 
-getModuleFileName :: HMODULE -> IO WindowsString
+getModuleFileName :: HMODULE -> IO String
 getModuleFileName hmod =
   allocaArray 512 $ \ c_str -> do
   failIfFalse_ "GetModuleFileName" $ c_GetModuleFileName hmod c_str 512
