@@ -98,18 +98,20 @@ module AFP.Data.ByteString.Short.Word16 (
 
   -- * Low level conversions
   -- ** Packing 'CString's and pointers
-  packCString,
-  packCStringLen,
+  packCWString,
+  packCWStringLen,
+  newCWString,
 
   -- ** Using ShortByteStrings as 'CString's
-  useAsCString,
-  useAsCStringLen,
+  useAsCWString,
+  useAsCWStringLen,
   )
 where
 
 import AFP.Data.ByteString.Short
     ( append, intercalate, isInfixOf, isPrefixOf, isSuffixOf, stripSuffix, fromShort, toShort, concat, breakSubstring )
 import AFP.Data.ByteString.Short.Internal
+import qualified Data.ByteString.Short.Internal as BS
 import AFP.Data.Word16
 
 import Data.Bifunctor

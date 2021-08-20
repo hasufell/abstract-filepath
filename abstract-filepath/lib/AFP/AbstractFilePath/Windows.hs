@@ -28,6 +28,9 @@ module AFP.AbstractFilePath.Windows
   -- * Word construction
   , fromChar
 
+  -- * Word deconstruction
+  , toChar
+
   -- * Separator predicates
   , pathSeparator
   , pathSeparators
@@ -102,6 +105,7 @@ import AFP.OsString.Internal.Types
 import AFP.OsString.Windows
     ( bsToPlatformString
     , fromChar
+    , toChar
     , fromPlatformString
     , fromPlatformStringIO
     , packPlatformString

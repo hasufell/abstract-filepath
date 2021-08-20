@@ -30,6 +30,9 @@ module AFP.AbstractFilePath.Posix
   -- * Word construction
   , fromChar
 
+  -- * Word deconstruction
+  , toChar
+
   -- * Separator predicates
   , pathSeparator
   , pathSeparators
@@ -107,6 +110,7 @@ import AFP.OsString.Internal.Types
 import AFP.OsString.Posix
     ( bsToPlatformString
     , fromChar
+    , toChar
     , fromPlatformString
     , fromPlatformStringIO
     , packPlatformString

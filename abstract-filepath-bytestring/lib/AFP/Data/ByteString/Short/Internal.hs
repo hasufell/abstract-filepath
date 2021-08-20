@@ -17,8 +17,13 @@ module AFP.Data.ByteString.Short.Internal
   , unsafeFreezeByteArray
   , useAsCString
   , useAsCStringLen
+  , useAsCWString
+  , useAsCWStringLen
   , packCString
   , packCStringLen
+  , packCWString
+  , packCWStringLen
+  , newCWString
   )
 
 where
@@ -32,16 +37,20 @@ import "bytestring" Data.ByteString.Short.Internal
 import GHC.Exts
 import GHC.ST
     ( ST (ST), runST )
+import Data.Word
+import Foreign.C.String hiding (newCWString)
+import Foreign.Marshal.Alloc (allocaBytes)
+import Foreign.Marshal.Array (mallocArray0)
+import Foreign.Storable (pokeByteOff)
+import qualified Data.ByteString.Short as BS
+import Data.ByteString.Short.Internal
+import Data.ByteString.Internal (c_strlen)
+import Control.Exception ( throwIO )
 #if MIN_VERSION_bytestring(0,10,9)
 import Data.ByteString.Short (useAsCString, useAsCStringLen, packCString, packCStringLen)
 #else
 import Data.Word
-import Foreign.C.String
 import Foreign.C.Types
-import Data.ByteString.Short.Internal
-import Foreign.Marshal.Alloc (allocaBytes)
-import Foreign.Storable (pokeByteOff)
-import Control.Exception ( throwIO )
 #endif
 
 
@@ -153,6 +162,72 @@ useAsCStringLen bs action =
   where l = length bs
 
 
+#endif
+
+
+-- | /O(n)./ Construct a new @ShortByteString@ from a @CWString@. The
+-- resulting @ShortByteString@ is an immutable copy of the original
+-- @CWString@, and is managed on the Haskell heap. The original
+-- @CWString@ must be null terminated.
+--
+-- @since 0.10.10.0
+packCWString :: CWString -> IO ShortByteString
+packCWString cstr = do
+  len <- c_strlen (coerce cstr)
+  packCWStringLen (cstr, fromIntegral len)
+
+-- | /O(n)./ Construct a new @ShortByteString@ from a @CWStringLen@. The
+-- resulting @ShortByteString@ is an immutable copy of the original @CWStringLen@.
+-- The @ShortByteString@ is a normal Haskell value and will be managed on the
+-- Haskell heap.
+--
+-- @since 0.10.10.0
+packCWStringLen :: CWStringLen -> IO ShortByteString
+packCWStringLen (cstr, len) | len >= 0 = createFromPtr cstr len
+packCWStringLen (_, len) =
+  moduleErrorIO "packCWStringLen" ("negative length: " ++ show len)
+
+
+-- | /O(n) construction./ Use a @ShortByteString@ with a function requiring a
+-- null-terminated @CWString@.  The @CWString@ is a copy and will be freed
+-- automatically; it must not be stored or used after the
+-- subcomputation finishes.
+--
+-- @since 0.10.10.0
+useAsCWString :: ShortByteString -> (CWString -> IO a) -> IO a
+useAsCWString bs action =
+  allocaBytes (l+1) $ \buf -> do
+      copyToPtr bs 0 buf (fromIntegral l)
+      pokeByteOff buf l (0::Word8)
+      action buf
+  where l = length bs
+
+-- | /O(n) construction./ Use a @ShortByteString@ with a function requiring a @CWStringLen@.
+-- As for @useAsCWString@ this function makes a copy of the original @ShortByteString@.
+-- It must not be stored or used after the subcomputation finishes.
+--
+-- @since 0.10.10.0
+useAsCWStringLen :: ShortByteString -> (CWStringLen -> IO a) -> IO a
+useAsCWStringLen bs action =
+  allocaBytes l $ \buf -> do
+      copyToPtr bs 0 buf (fromIntegral l)
+      action (buf, l)
+  where l = length bs
+
+-- | /O(n) construction./ Use a @ShortByteString@ with a function requiring a @CWStringLen@.
+-- As for @useAsCWString@ this function makes a copy of the original @ShortByteString@.
+-- It must not be stored or used after the subcomputation finishes.
+--
+-- @since 0.10.10.0
+newCWString :: ShortByteString -> IO CWString
+newCWString bs = do
+  ptr <- mallocArray0 l
+  copyToPtr bs 0 ptr (fromIntegral l)
+  pokeByteOff ptr l (0::Word8)
+  return ptr
+  where l = length bs
+
+
  -- ---------------------------------------------------------------------
 -- Internal utilities
 
@@ -162,6 +237,3 @@ moduleErrorIO fun msg = throwIO . userError $ moduleErrorMsg fun msg
 
 moduleErrorMsg :: String -> String -> String
 moduleErrorMsg fun msg = "Data.ByteString.Short." ++ fun ++ ':':' ':msg
-#endif
-
-
