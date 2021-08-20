@@ -49,10 +49,6 @@ import Prelude hiding (FilePath)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid ((<>))
 #endif
--- this is a copy-paste from bytestring
-#if !MIN_VERSION_bytestring(0,10,9)
-import AFP.Data.ByteString.Short.Internal
-#endif
 
 
 withFilePath :: PosixFilePath -> (CString -> IO a) -> IO a

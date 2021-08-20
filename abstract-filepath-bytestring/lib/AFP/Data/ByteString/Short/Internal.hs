@@ -44,9 +44,9 @@ import Foreign.Marshal.Array (mallocArray0)
 import Foreign.Storable (pokeByteOff)
 import qualified Data.ByteString.Short as BS
 import Data.ByteString.Short.Internal
-import Data.ByteString.Internal (c_strlen)
 import Control.Exception ( throwIO )
 #if MIN_VERSION_bytestring(0,10,9)
+import Data.ByteString.Internal (c_strlen)
 import Data.ByteString.Short (useAsCString, useAsCStringLen, packCString, packCStringLen)
 #else
 import Data.Word
