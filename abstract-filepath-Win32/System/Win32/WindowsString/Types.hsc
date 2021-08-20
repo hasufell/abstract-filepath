@@ -22,12 +22,8 @@ module System.Win32.WindowsString.Types
 import AFP.OsString.Windows
 import AFP.OsString.Internal.Types
 import AFP.Data.ByteString.Short.Word16 ( 
-  -- * Low level conversions
-  -- ** Packing 'CString's and pointers
   packCWString,
   packCWStringLen,
-
-  -- ** Using ShortByteStrings as 'CString's
   useAsCWString,
   useAsCWStringLen,
   newCWString
