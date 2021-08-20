@@ -42,7 +42,7 @@ library
 
   x-docspec-extra-packages: QuickCheck
 
-benchmark abstract-filepath-bytestring-bench
+benchmark bench
   main-is:          Bench.hs
   other-modules:
     Short.BenchAll
