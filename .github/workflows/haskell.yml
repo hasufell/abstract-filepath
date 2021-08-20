@@ -63,7 +63,13 @@ jobs:
         chmod a+x $HOME/.local/bin/cabal-docspec
       shell: bash
 
-    - name: Build
+    - if: matrix.os == 'windows-latest'
+      name: Build
+      run: cabal build --enable-tests --enable-benchmarks abstract-filepath abstract-filepath-types
+      shell: bash
+
+    - if: matrix.os != 'windows-latest'
+      name: Build
       run: cabal build --enable-tests --enable-benchmarks all
       shell: bash
 
@@ -77,10 +83,16 @@ jobs:
       shell: bash
 
     - name: Run benches
-      run: cabal bench all
+      run: cabal bench abstract-filepath
       shell: bash
 
-    - name: Build haddock
+    - if: matrix.os == 'windows-latest'
+      name: Build haddock
+      run: cabal haddock abstract-filepath abstract-filepath-types
+      shell: bash
+
+    - if: matrix.os != 'windows-latest'
+      name: Build haddock
       run: cabal haddock all
       shell: bash
 
@@ -119,7 +131,13 @@ jobs:
           ${{ runner.os }}-build-
           ${{ runner.os }}-
 
-    - name: Build
+    - if: matrix.os == 'windows-latest'
+      name: Build
+      run: stack build abstract-filepath abstract-filepath-types
+      shell: bash
+
+    - if: matrix.os != 'windows-latest'
+      name: Build
       run: stack build
       shell: bash
 
@@ -128,5 +146,5 @@ jobs:
       shell: bash
 
     - name: Run benches
-      run: stack bench
+      run: stack bench abstract-filepath
       shell: bash

@@ -3,6 +3,7 @@ resolver: lts-18.5
 packages:
   - ./abstract-filepath
   - ./abstract-filepath-types
+  - ./abstract-filepath-unix
 
 extra-deps:
   - hspec-2.8.2@sha256:27523f8fb7b84729d7c8160c1db991fc2afac52b1bc4e99f0e239a1321031079,1709
