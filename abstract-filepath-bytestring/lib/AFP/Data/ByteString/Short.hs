@@ -265,7 +265,7 @@ init = \sbs ->
 -- | /O(n)/ 'map' @f xs@ is the ShortByteString obtained by applying @f@ to each
 -- element of @xs@.
 map :: (Word8 -> Word8) -> ShortByteString -> ShortByteString
-map f sbs =
+map f = \sbs ->
     let l = length sbs
         ba = asBA sbs
     in create l (\mba -> go ba mba 0 l)
@@ -353,25 +353,25 @@ foldr1' k = _foldr1' k . unpack
 -- | /O(n)/ Applied to a predicate and a 'ShortByteString', 'all' determines
 -- if all elements of the 'ShortByteString' satisfy the predicate.
 all :: (Word8 -> Bool) -> ShortByteString -> Bool
-all k sbs = go 0
-  where
-    l = BS.length sbs
-    ba = asBA sbs
-    w = indexWord8Array ba
-    go !n | n >= l    = True
-          | otherwise = k (w n) && go (n + 1)
+all k = \sbs ->
+  let l = BS.length sbs
+      ba = asBA sbs
+      w = indexWord8Array ba
+      go !n | n >= l    = True
+            | otherwise = k (w n) && go (n + 1)
+  in go 0
 
 
 -- | /O(n)/ Applied to a predicate and a ByteString, 'any' determines if
 -- any element of the 'ByteString' satisfies the predicate.
 any :: (Word8 -> Bool) -> ShortByteString -> Bool
-any k sbs = go 0
-  where
-    l = BS.length sbs
-    ba = asBA sbs
-    w = indexWord8Array ba
-    go !n | n >= l    = False
-          | otherwise = k (w n) || go (n + 1)
+any k = \sbs ->
+  let l = BS.length sbs
+      ba = asBA sbs
+      w = indexWord8Array ba
+      go !n | n >= l    = False
+            | otherwise = k (w n) || go (n + 1)
+  in go 0
 {-# INLINE [1] any #-}
 
 
@@ -408,7 +408,7 @@ drop = \n -> \sbs ->
 --
 -- Note: copies the entire byte array
 dropWhile :: (Word8 -> Bool) -> ShortByteString -> ShortByteString
-dropWhile f ps = drop (findIndexOrLength (not . f) ps) ps
+dropWhile f = \ps -> drop (findIndexOrLength (not . f) ps) ps
 
 -- | Similar to 'P.dropWhileEnd',
 -- drops the longest (possibly empty) suffix of elements
@@ -418,7 +418,7 @@ dropWhile f ps = drop (findIndexOrLength (not . f) ps) ps
 --
 -- @since 0.10.12.0
 dropWhileEnd :: (Word8 -> Bool) -> ShortByteString -> ShortByteString
-dropWhileEnd f ps = take (findFromEndUntil (not . f) ps) ps
+dropWhileEnd f = \ps -> take (findFromEndUntil (not . f) ps) ps
 {-# INLINE dropWhileEnd #-}
 
 -- | Returns the longest (possibly empty) suffix of elements which __do not__
@@ -426,7 +426,7 @@ dropWhileEnd f ps = take (findFromEndUntil (not . f) ps) ps
 --
 -- 'breakEnd' @p@ is equivalent to @'spanEnd' (not . p)@ and to @('takeWhileEnd' (not . p) &&& 'dropWhileEnd' (not . p))@.
 breakEnd :: (Word8 -> Bool) -> ShortByteString -> (ShortByteString, ShortByteString)
-breakEnd p sbs = splitAt (findFromEndUntil p sbs) sbs
+breakEnd p = \sbs -> splitAt (findFromEndUntil p sbs) sbs
 {-# INLINE breakEnd #-}
 
 -- | Similar to 'P.break',
@@ -463,16 +463,16 @@ span p = break (not . p)
 -- > let (x, y) = span (not . isSpace) (reverse ps) in (reverse y, reverse x)
 --
 spanEnd :: (Word8 -> Bool) -> ShortByteString -> (ShortByteString, ShortByteString)
-spanEnd  p ps = splitAt (findFromEndUntil (not.p) ps) ps
+spanEnd p = \ps -> splitAt (findFromEndUntil (not.p) ps) ps
 
 -- | /O(n)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
 --
 -- Note: copies the substrings
 splitAt :: Int -> ShortByteString -> (ShortByteString, ShortByteString)
-splitAt n xs
-  | n <= 0 = (mempty, xs)
-  | n >= BS.length xs = (xs, mempty)
-  | otherwise = (take n xs, drop n xs)
+splitAt n = \xs -> if
+  | n <= 0 -> (mempty, xs)
+  | n >= BS.length xs -> (xs, mempty)
+  | otherwise -> (take n xs, drop n xs)
 
 -- | /O(n)/ Break a 'ShortByteString' into pieces separated by the byte
 -- argument, consuming the delimiter. I.e.
@@ -501,9 +501,9 @@ split w = splitWith (== w)
 -- > splitWith undefined ""     == []                  -- and not [""]
 --
 splitWith :: (Word8 -> Bool) -> ShortByteString -> [ShortByteString]
-splitWith p sbs
-  | BS.null sbs = []
-  | otherwise = go sbs
+splitWith p = \sbs -> if
+  | BS.null sbs -> []
+  | otherwise -> go sbs
   where
     go sbs'
       | BS.null sbs' = [mempty]
@@ -728,15 +728,15 @@ breakSubstring pat =
 
 -- | /O(n)/ 'elem' is the 'ShortByteString' membership predicate.
 elem :: Word8 -> ShortByteString -> Bool
-elem c ps = case elemIndex c ps of Nothing -> False ; _ -> True
+elem c = \ps -> case elemIndex c ps of Nothing -> False ; _ -> True
 
 -- | /O(n)/ 'filter', applied to a predicate and a ByteString,
 -- returns a ByteString containing those characters that satisfy the
 -- predicate.
 filter :: (Word8 -> Bool) -> ShortByteString -> ShortByteString
-filter k sbs
-    | null sbs   = sbs
-    | otherwise = pack . List.filter k . unpack $ sbs
+filter k = \sbs -> if
+    | null sbs  -> sbs
+    | otherwise -> pack . List.filter k . unpack $ sbs
 {-# INLINE filter #-}
 
 -- | /O(n)/ The 'find' function takes a predicate and a ByteString,
@@ -746,7 +746,7 @@ filter k sbs
 -- > find f p = case findIndex f p of Just n -> Just (p ! n) ; _ -> Nothing
 --
 find :: (Word8 -> Bool) -> ShortByteString -> Maybe Word8
-find f p = case findIndex f p of
+find f = \p -> case findIndex f p of
                     Just n -> Just (p `index` n)
                     _      -> Nothing
 {-# INLINE find #-}
@@ -758,9 +758,9 @@ find f p = case findIndex f p of
 -- > partition p bs == (filter p xs, filter (not . p) xs)
 --
 partition :: (Word8 -> Bool) -> ShortByteString -> (ShortByteString, ShortByteString)
-partition f s
-    | null s    = (s, s)
-    | otherwise = bimap pack pack . List.partition f . unpack $ s
+partition f = \s -> if
+    | null s    -> (s, s)
+    | otherwise -> bimap pack pack . List.partition f . unpack $ s
 
 
 
@@ -783,28 +783,28 @@ elemIndices k = findIndices (==k)
 -- returns the index of the first element in the ByteString
 -- satisfying the predicate.
 findIndex :: (Word8 -> Bool) -> ShortByteString -> Maybe Int
-findIndex k sbs = go 0
-  where
-    l = BS.length sbs
-    ba = asBA sbs
-    w = indexWord8Array ba
-    go !n | n >= l    = Nothing
-          | k (w n)   = Just n
-          | otherwise = go (n + 1)
+findIndex k = \sbs ->
+  let l = BS.length sbs
+      ba = asBA sbs
+      w = indexWord8Array ba
+      go !n | n >= l    = Nothing
+            | k (w n)   = Just n
+            | otherwise = go (n + 1)
+  in go 0
 {-# INLINE findIndex #-}
 
 
 -- | /O(n)/ The 'findIndices' function extends 'findIndex', by returning the
 -- indices of all elements satisfying the predicate, in ascending order.
 findIndices :: (Word8 -> Bool) -> ShortByteString -> [Int]
-findIndices k sbs = go 0
-  where
-    l = BS.length sbs
-    ba = asBA sbs
-    w = indexWord8Array ba
-    go !n | n >= l    = []
-          | k (w n)   = n : go (n + 1)
-          | otherwise = go (n + 1)
+findIndices k = \sbs ->
+  let l = BS.length sbs
+      ba = asBA sbs
+      w = indexWord8Array ba
+      go !n | n >= l    = []
+            | k (w n)   = n : go (n + 1)
+            | otherwise = go (n + 1)
+  in go 0
 {-# INLINE [1] findIndices #-}
 
 
