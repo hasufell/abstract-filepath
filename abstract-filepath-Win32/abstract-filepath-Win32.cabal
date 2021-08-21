@@ -19,7 +19,7 @@ description:
 build-type:         Simple
 cabal-version:      >=2.0
 extra-source-files:
-  changelog.md
+  CHANGELOG.md
   include/alignment.h
   include/diatemp.h
   include/dumpBMP.h

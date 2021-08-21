@@ -128,7 +128,7 @@ import AFP.AbstractFilePath.Types
 -- >>> :set -XFlexibleInstances
 -- >>> import Data.Char
 -- >>> import Data.Maybe
--- >>> import AFP.Data.Word16
+-- >>> import Data.Word16
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
 -- >>> import AFP.AbstractFilePath.Types

@@ -12,7 +12,7 @@ import AFP.AbstractFilePath.Types
 
 #ifdef WINDOWS
 import qualified AFP.Data.ByteString.Short.Word16 as BS
-import AFP.Data.Word16
+import Data.Word16
     ( isLetter
     , isSpace
     , toLower

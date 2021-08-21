@@ -30,8 +30,8 @@ library
   hs-source-dirs:   lib
   default-language: Haskell2010
   build-depends:
-    , abstract-filepath-word16
     , base                      >=4.9.1.0 && <5
     , bytestring                ^>=0.10
     , template-haskell          >=2.10    && <2.20
     , text                      >=1.2.3.0 && <1.2.6
+    , word16
