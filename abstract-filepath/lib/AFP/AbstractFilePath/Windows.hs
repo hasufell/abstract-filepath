@@ -126,6 +126,7 @@ import AFP.AbstractFilePath.Types
 
 -- $setup
 -- >>> :set -XFlexibleInstances
+-- >>> :set -XPackageImports
 -- >>> import Data.Char
 -- >>> import Data.Maybe
 -- >>> import Data.Word16
@@ -133,9 +134,9 @@ import AFP.AbstractFilePath.Types
 -- >>> import Control.Applicative
 -- >>> import AFP.AbstractFilePath.Types
 -- >>> import AFP.OsString.Internal.Types
--- >>> import Data.ByteString.Short (ShortByteString)
--- >>> import AFP.Data.ByteString.Short as BS (concat)
--- >>> import qualified AFP.Data.ByteString.Short.Word16 as BS
+-- >>> import "bytestring" Data.ByteString.Short (ShortByteString)
+-- >>> import "shortbytestring" Data.ByteString.Short as BS (concat)
+-- >>> import qualified Data.ByteString.Short.Word16 as BS
 -- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
 -- >>> instance CoArbitrary ShortByteString where coarbitrary = coarbitrary . BS.unpack
 -- >>> instance Arbitrary WindowsFilePath where arbitrary = WS <$> arbitrary

@@ -88,8 +88,9 @@ type Word = Word8
 #ifdef WINDOWS
 -- $setup
 -- >>> :set -XFlexibleInstances
+-- >>> :set -XPackageImports
 -- >>> import Prelude hiding (Word)
--- >>> import Data.ByteString.Short (ShortByteString)
+-- >>> import "bytestring" Data.ByteString.Short (ShortByteString)
 -- >>> import Data.Char
 -- >>> import Data.Maybe
 -- >>> import Data.Word8
@@ -97,7 +98,7 @@ type Word = Word8
 -- >>> import Control.Applicative
 -- >>> import AFP.AbstractFilePath.Types
 -- >>> import AFP.OsString.Internal.Types
--- >>> import qualified AFP.Data.ByteString.Short.Word16 as BS
+-- >>> import qualified Data.ByteString.Short.Word16 as BS
 -- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
 -- >>> instance CoArbitrary ShortByteString where coarbitrary = coarbitrary . BS.unpack
 -- >>> instance Arbitrary PosixFilePath where arbitrary = PS <$> arbitrary
@@ -110,16 +111,17 @@ type Word = Word8
 #else
 -- $setup
 -- >>> :set -XFlexibleInstances
+-- >>> :set -XPackageImports
 -- >>> import Prelude hiding (Word)
 -- >>> import AFP.AbstractFilePath.Types
--- >>> import Data.ByteString.Short (ShortByteString)
+-- >>> import "bytestring" Data.ByteString.Short (ShortByteString)
 -- >>> import Data.Char
 -- >>> import Data.Maybe
 -- >>> import Data.Word8
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
 -- >>> import AFP.OsString.Internal.Types
--- >>> import qualified Data.ByteString.Short as BS
+-- >>> import qualified "bytestring" Data.ByteString.Short as BS
 -- >>> instance Arbitrary ShortByteString where arbitrary = BS.pack <$> arbitrary
 -- >>> instance CoArbitrary ShortByteString where coarbitrary = coarbitrary . BS.unpack
 -- >>> instance Arbitrary PosixFilePath where arbitrary = PS <$> arbitrary
