@@ -867,7 +867,7 @@ findFromEndUntil k sbs = go (BS.length sbs - 2)
 assertEven :: ShortByteString -> ShortByteString
 assertEven sbs@(BS.SBS barr#)
   | even (I# (sizeofByteArray# barr#)) = sbs
-  | otherwise = error ("Uneven number of bytes: " <> show (BS.length sbs) <> ". This is not a Word16 bytestream: " <> show sbs)
+  | otherwise = error ("Uneven number of bytes: " <> show (BS.length sbs) <> ". This is not a Word16 bytestream.")
 
 
 
