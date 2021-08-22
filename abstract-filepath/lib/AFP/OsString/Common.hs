@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE PackageImports #-}
 -- This template expects CPP definitions for:
 --     MODULE_NAME = Posix | Windows
 --     IS_WINDOWS  = False | True
@@ -46,7 +47,7 @@ import AFP.OsString.Internal.Types
   )
 #endif
 
-import AFP.Data.ByteString.Short.Encode
+import Data.ByteString.Short.Encode
   ( 
 #ifdef WINDOWS
     encodeUtf16LE
@@ -54,7 +55,7 @@ import AFP.Data.ByteString.Short.Encode
     encodeUtf8
 #endif
   )
-import AFP.Data.ByteString.Short.Decode
+import Data.ByteString.Short.Decode
     (
 #ifdef WINDOWS
       decodeUtf16LE'
@@ -97,11 +98,10 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 
 #ifdef WINDOWS
-import qualified AFP.Data.ByteString.Short.Word16 as BS
+import Data.ByteString.Short.Word16 as BS
 #else
-import qualified AFP.Data.ByteString.Short as BS
+import "shortbytestring" Data.ByteString.Short as BS
 #endif
-import AFP.Data.ByteString.Short (toShort)
 
 
 

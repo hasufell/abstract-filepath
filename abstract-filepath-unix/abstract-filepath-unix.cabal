@@ -59,7 +59,7 @@ library
 
   build-depends:
     , abstract-filepath
-    , abstract-filepath-bytestring
+    , shortbytestring
     , abstract-filepath-types
     , base                          >=4.9.1.0 && <5
     , bytestring                    >=0.9.2   && <0.12

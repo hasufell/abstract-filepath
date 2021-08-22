@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE PackageImports #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -43,8 +44,7 @@ import Foreign.C hiding (
 import AFP.AbstractFilePath.Types
 import AFP.OsString.Internal.Types
 import Control.Monad
-import Data.ByteString.Short (ShortByteString)
-import AFP.Data.ByteString.Short
+import "shortbytestring" Data.ByteString.Short
 import Prelude hiding (FilePath)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid ((<>))

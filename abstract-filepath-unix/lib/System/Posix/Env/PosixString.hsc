@@ -1,4 +1,5 @@
 {-# LANGUAGE CApiFFI #-}
+{-# LANGUAGE PackageImports #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -37,7 +38,7 @@ import Data.Word8
 import System.Posix.PosixFilePath.FilePath
 
 import AFP.OsString.Internal.Types
-import qualified AFP.Data.ByteString.Short as B
+import qualified "shortbytestring" Data.ByteString.Short as B
 
 -- |'getEnv' looks up a variable in the environment.
 

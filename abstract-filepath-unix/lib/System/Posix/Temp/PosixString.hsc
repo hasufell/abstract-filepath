@@ -1,4 +1,5 @@
 {-# LANGUAGE CApiFFI #-}
+{-# LANGUAGE PackageImports #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Temp.PosixString
@@ -20,7 +21,7 @@ module System.Posix.Temp.PosixString (
 
 #include "HsUnix.h"
 
-import qualified AFP.Data.ByteString.Short as BC
+import qualified "shortbytestring" Data.ByteString.Short as BC
 
 import Foreign.C
 

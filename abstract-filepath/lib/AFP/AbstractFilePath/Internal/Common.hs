@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE PackageImports #-}
 -- This template expects CPP definitions for:
 --     MODULE_NAME = Posix | Windows
 --     IS_WINDOWS  = False | True
@@ -11,7 +12,7 @@ import AFP.AbstractFilePath.Types
   ()
 
 #ifdef WINDOWS
-import qualified AFP.Data.ByteString.Short.Word16 as BS
+import qualified Data.ByteString.Short.Word16 as BS
 import Data.Word16
     ( isLetter
     , isSpace
@@ -37,7 +38,7 @@ import Data.Word16
 import GHC.Word
     ( Word16 )
 #else
-import qualified AFP.Data.ByteString.Short as BS
+import qualified "shortbytestring" Data.ByteString.Short as BS
 import Data.Word8
     ( Word8
     , isLetter
@@ -63,7 +64,7 @@ import Data.Word8
     )
 #endif
 
-import Data.ByteString.Short
+import "shortbytestring" Data.ByteString.Short
     ( ShortByteString )
 import Data.List
     ( mapAccumL )

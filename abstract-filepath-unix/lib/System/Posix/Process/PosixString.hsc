@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Posix.Process.PosixString
@@ -80,7 +81,7 @@ import Foreign.C hiding (
 import Data.Word8
 import AFP.AbstractFilePath.Types
 import AFP.OsString.Internal.Types
-import qualified AFP.Data.ByteString.Short as BC
+import qualified "shortbytestring" Data.ByteString.Short as BC
 
 import System.Posix.PosixFilePath.FilePath
 

@@ -4,9 +4,9 @@ module AbstractFilePathSpec where
 
 import AFP.AbstractFilePath
 import AFP.OsString.Internal.Types
-import AFP.Data.ByteString.Short.Decode
+import Data.ByteString.Short.Decode
     ( decodeUtf16LE, decodeUtf8 )
-import AFP.Data.ByteString.Short.Encode
+import Data.ByteString.Short.Encode
     ( encodeUtf16LE, encodeUtf8 )
 
 import Arbitrary ()

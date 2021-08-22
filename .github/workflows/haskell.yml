@@ -68,7 +68,7 @@ jobs:
       shell: bash
 
     - name: Run tests
-      run: cabal test abstract-filepath:spec abstract-filepath-bytestring:prop-compiled
+      run: cabal test abstract-filepath:spec
       shell: bash
 
     - if: matrix.os == 'ubuntu-latest'
@@ -76,9 +76,9 @@ jobs:
       run: cabal-docspec -XCPP -XTypeSynonymInstances -XOverloadedStrings abstract-filepath
       shell: bash
 
-    - name: Run benches
-      run: cabal bench abstract-filepath-bytestring
-      shell: bash
+        #    - name: Run benches
+        #      run: cabal bench abstract-filepath-bytestring
+        #      shell: bash
 
     - name: Build haddock
       run: cabal haddock all
@@ -127,6 +127,6 @@ jobs:
       run: stack test abstract-filepath:spec abstract-filepath-bytestring:prop-compiled
       shell: bash
 
-    - name: Run benches
-      run: stack bench abstract-filepath-bytestring
-      shell: bash
+        #    - name: Run benches
+        #      run: stack bench abstract-filepath-bytestring
+        #      shell: bash

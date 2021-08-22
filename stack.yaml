@@ -4,10 +4,10 @@ packages:
   - ./abstract-filepath
   - ./abstract-filepath-types
   - ./abstract-filepath-unix
-  - ./abstract-filepath-bytestring
   - ./abstract-filepath-Win32
 
 extra-deps:
   - word16-0.1.0.0@sha256:b15315a8572aafa05cdccecbe17b22cd89d33d7bbd7a86ac2003ae58686d99af,1549
+  - shortbytestring-0.1.0.0@sha256:b65a534f03eee496efaccc8ef5ba00e966589662c2ce6a0ba38e2112f025a09c,2403
 
 allow-newer: true
