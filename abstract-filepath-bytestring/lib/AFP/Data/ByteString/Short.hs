@@ -32,8 +32,8 @@ module AFP.Data.ByteString.Short
 
   -- * Transforming ShortByteStrings
   map,
+  reverse,
   intercalate,
-
 
   -- * Reducing 'ShortByteString's (folds)
   foldl,
@@ -60,7 +60,11 @@ module AFP.Data.ByteString.Short
 
   -- ** Breaking strings
   take,
+  takeEnd,
+  takeWhileEnd,
+  takeWhile,
   drop,
+  dropEnd,
   dropWhile,
   dropWhileEnd,
   breakEnd,
@@ -71,6 +75,7 @@ module AFP.Data.ByteString.Short
   split,
   splitWith,
   stripSuffix,
+  stripPrefix,
 
   -- * Predicates
   isInfixOf,
@@ -92,8 +97,11 @@ module AFP.Data.ByteString.Short
 
   -- * Indexing ShortByteStrings
   index,
+  indexMaybe,
+  (!?),
   elemIndex,
   elemIndices,
+  count,
   findIndex,
   findIndices,
 
@@ -126,12 +134,14 @@ import Prelude hiding
     , last
     , length
     , map
+    , reverse
     , null
     , replicate
     , span
     , splitAt
     , tail
     , take
+    , takeWhile
     )
 
 import AFP.Data.ByteString.Short.Internal
@@ -140,6 +150,10 @@ import Data.ByteString.Short
     , empty
     , fromShort
     , index
+#if MIN_VERSION_bytestring(0,11,0)
+    , indexMaybe
+    , (!?)
+#endif
     , length
     , null
     , pack
@@ -278,6 +292,23 @@ map f = \sbs ->
           writeWord8Array mba i (f w)
           go ba mba (i+1) l
 
+
+-- | /O(n)/ 'reverse' @xs@ efficiently returns the elements of @xs@ in reverse order.
+reverse :: ShortByteString -> ShortByteString
+reverse = \sbs ->
+    let l = length sbs
+        ba = asBA sbs
+    in create l (\mba -> go ba mba 0 l)
+  where
+    go :: BA -> MBA s -> Int -> Int -> ST s ()
+    go !ba !mba !i !l
+      | i >= l = return ()
+      | otherwise = do
+          let w = indexWord8Array ba i
+          writeWord8Array mba (l - 1 - i) w
+          go ba mba (i+1) l
+
+
 -- | /O(n)/ The 'intercalate' function takes a 'ShortByteString' and a list of
 -- 'ShortByteString's and concatenates the list after interspersing the first
 -- argument between each element of the list.
@@ -319,7 +350,7 @@ foldr' k v = Foldable.foldr' k v . unpack
 -- argument, and thus must be applied to non-empty 'ShortByteString's.
 -- An exception will be thrown in the case of an empty ShortByteString.
 foldl1 :: (Word8 -> Word8 -> Word8) -> ShortByteString -> Word8
-foldl1 k = List.foldr1 k . unpack
+foldl1 k = List.foldl1 k . unpack
 {-# INLINE foldl1 #-}
 
 -- | 'foldl1'' is like 'foldl1', but strict in the accumulator.
@@ -337,12 +368,7 @@ foldr1 k = List.foldr1 k . unpack
 -- | 'foldr1'' is a variant of 'foldr1', but is strict in the
 -- accumulator.
 foldr1' :: (Word8 -> Word8 -> Word8) -> ShortByteString -> Word8
-foldr1' k = _foldr1' k . unpack
- where
-  -- | A strict version of 'foldr1'.
-  _foldr1'                  :: (a -> a -> a) -> [a] -> a
-  _foldr1' f (x:xs)         =  Foldable.foldr' f x xs
-  _foldr1' _ []             =  errorEmptyList "foldl1'"
+foldr1' k = \sbs -> if null sbs then errorEmptyList "foldr1'" else foldr' k (last sbs) (init sbs)
 {-# INLINE foldr1' #-}
 
 
@@ -393,15 +419,65 @@ take = \n -> \sbs ->
   in create len $ \mba -> copyByteArray (asBA sbs) 0 mba 0 len
 {-# INLINE take #-}
 
+-- | Similar to 'P.takeWhile',
+-- returns the longest (possibly empty) prefix of elements
+-- satisfying the predicate.
+takeWhile :: (Word8 -> Bool) -> ShortByteString -> ShortByteString
+takeWhile f ps = take (findIndexOrLength (not . f) ps) ps
+{-# INLINE [1] takeWhile #-}
+
+-- | /O(1)/ @'takeEnd' n xs@ is equivalent to @'drop' ('length' xs - n) xs@.
+-- Takes @n@ elements from end of bytestring.
+--
+-- >>> takeEnd 3 "abcdefg"
+-- "efg"
+-- >>> takeEnd 0 "abcdefg"
+-- ""
+-- >>> takeEnd 4 "abc"
+-- "abc"
+takeEnd :: Int -> ShortByteString -> ShortByteString
+takeEnd n sbs
+    | n >= length sbs  = sbs
+    | n <= 0           = empty
+    | otherwise        = drop (length sbs - n) sbs
+{-# INLINE takeEnd #-}
+
+-- | Returns the longest (possibly empty) suffix of elements
+-- satisfying the predicate.
+--
+-- @'takeWhileEnd' p@ is equivalent to @'reverse' . 'takeWhile' p . 'reverse'@.
+takeWhileEnd :: (Word8 -> Bool) -> ShortByteString -> ShortByteString
+takeWhileEnd f ps = drop (findFromEndUntil (not . f) ps) ps
+{-# INLINE takeWhileEnd #-}
+
 -- | /O(n)/ 'drop' @n@ @xs@ returns the suffix of @xs@ after the first n elements, or @[]@ if @n > 'length' xs@.
 --
 -- Note: copies the entire byte array
 drop  :: Int -> ShortByteString -> ShortByteString
 drop = \n -> \sbs ->
-  let len = max 0 (BS.length sbs - max 0 n)
-  in create len $ \mba -> copyByteArray (asBA sbs) n mba 0 len
+  let len = BS.length sbs
+      newLen = max 0 (len - max 0 n)
+  in if | n <= 0    -> sbs
+        | n >= len  -> empty
+        | otherwise -> create newLen $ \mba -> copyByteArray (asBA sbs) n mba 0 newLen
 {-# INLINE drop #-}
 
+-- | /O(1)/ @'dropEnd' n xs@ is equivalent to @'take' ('length' xs - n) xs@.
+-- Drops @n@ elements from end of bytestring.
+--
+-- >>> dropEnd 3 "abcdefg"
+-- "abcd"
+-- >>> dropEnd 0 "abcdefg"
+-- "abcdefg"
+-- >>> dropEnd 4 "abc"
+-- ""
+dropEnd :: Int -> ShortByteString -> ShortByteString
+dropEnd n sbs
+    | n <= 0           = sbs
+    | n >= length sbs  = empty
+    | otherwise        = take (length sbs - n) sbs
+
+{-# INLINE dropEnd #-}
 -- | Similar to 'P.dropWhile',
 -- drops the longest (possibly empty) prefix of elements
 -- satisfying the predicate and returns the remainder.
@@ -540,6 +616,32 @@ stripSuffix sbs1 sbs2 = do
             free p2
             return Nothing
 
+-- | /O(n)/ The 'stripPrefix' function takes two ShortByteStrings and returns 'Just'
+-- the remainder of the second iff the first is its prefix, and otherwise
+-- 'Nothing'.
+stripPrefix :: ShortByteString -> ShortByteString -> Maybe ShortByteString
+stripPrefix sbs1 sbs2 = do
+  let l1 = BS.length sbs1
+      l2 = BS.length sbs2
+  if | l1 == 0   -> Just sbs2
+     | l2 < l1   -> Nothing
+     | otherwise -> unsafeDupablePerformIO $ do
+         p1 <- mallocBytes l1
+         p2 <- mallocBytes l2
+         BS.copyToPtr sbs1 0 p1 l1
+         BS.copyToPtr sbs2 0 p2 l2
+         i <- memcmp p1 p2 (fromIntegral l1)
+         if i == 0
+          then do
+            sbs <- createFromPtr (p2 `plusPtr` l1) (l2 - l1)
+            free p1
+            free p2
+            return $! Just sbs
+          else do
+            free p1
+            free p2
+            return Nothing
+
 
 -- ---------------------------------------------------------------------
 -- Unfolds and replicates
@@ -568,6 +670,10 @@ replicate w c
 -- 'Just' @(a,b)@, in which case, @a@ is the next byte in the string,
 -- and @b@ is the seed value for further production.
 --
+-- This function is not efficient/safe. It will build a list of @[Word8]@
+-- and run the generator until it returns `Nothing`, otherwise recurse infinitely,
+-- then finally create a 'ShortByteString'.
+--
 -- Examples:
 --
 -- >    unfoldr (\x -> if x <= 5 then Just (x, x + 1) else Nothing) 0
@@ -586,12 +692,15 @@ unfoldr f x0 = packBytesRev $ go x0 mempty
 -- argument to 'unfoldrN'.  This function is more efficient than 'unfoldr'
 -- when the maximum length of the result is known.
 --
+-- This function is not efficient. It will build a full list of @[Word8]@
+-- before creating a 'ShortByteString'.
+--
 -- The following equation relates 'unfoldrN' and 'unfoldr':
 --
 -- > fst (unfoldrN n f s) == take n (unfoldr f s)
 --
 unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ShortByteString, Maybe a)
-unfoldrN i f x0 = first packBytesRev $ go i x0 mempty
+unfoldrN i f x0 = first packBytesRev $ go (i - 1) x0 mempty
  where
    go i' x words'
     | i' < 0     = (words', Just x)
@@ -763,6 +872,28 @@ partition f = \s -> if
     | otherwise -> bimap pack pack . List.partition f . unpack $ s
 
 
+#if !MIN_VERSION_bytestring(0,11,0)
+-- | /O(1)/ 'ShortByteString' index, starting from 0, that returns 'Just' if:
+--
+-- > 0 <= n < length bs
+--
+-- @since 0.11.0.0
+indexMaybe :: ShortByteString -> Int -> Maybe Word8
+indexMaybe sbs i
+  | i >= 0 && i < length sbs = Just $! indexWord8Array (asBA sbs) i
+  | otherwise                = Nothing
+{-# INLINE indexMaybe #-}
+
+-- | /O(1)/ 'ShortByteString' index, starting from 0, that returns 'Just' if:
+--
+-- > 0 <= n < length bs
+--
+-- @since 0.11.0.0
+(!?) :: ShortByteString -> Int -> Maybe Word8
+(!?) = indexMaybe
+{-# INLINE (!?) #-}
+#endif
+
 
 -- --------------------------------------------------------------------
 -- Indexing ShortByteString
@@ -778,6 +909,10 @@ elemIndex k = findIndex (==k)
 -- the indices of all elements equal to the query element, in ascending order.
 elemIndices :: Word8 -> ShortByteString -> [Int]
 elemIndices k = findIndices (==k)
+
+-- | count returns the number of times its argument appears in the ShortByteString
+count :: Word8 -> ShortByteString -> Int
+count w = List.length . elemIndices w
 
 -- | /O(n)/ The 'findIndex' function takes a predicate and a 'ShortByteString' and
 -- returns the index of the first element in the ByteString

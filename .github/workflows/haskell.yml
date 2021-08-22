@@ -68,7 +68,7 @@ jobs:
       shell: bash
 
     - name: Run tests
-      run: cabal test abstract-filepath:spec
+      run: cabal test abstract-filepath:spec abstract-filepath-bytestring:prop-compiled
       shell: bash
 
     - if: matrix.os == 'ubuntu-latest'
@@ -124,7 +124,7 @@ jobs:
       shell: bash
 
     - name: Run tests
-      run: stack test abstract-filepath:spec
+      run: stack test abstract-filepath:spec abstract-filepath-bytestring:prop-compiled
       shell: bash
 
     - name: Run benches

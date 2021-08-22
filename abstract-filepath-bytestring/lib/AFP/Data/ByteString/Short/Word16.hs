@@ -8,6 +8,26 @@
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE ViewPatterns #-}
 
+-- |
+-- Module      :  AFP.Data.ByteString.Short.Word16
+-- Copyright   :  © 2021 Julian Ospald
+-- License     :  MIT
+--
+-- Maintainer  :  Julian Ospald <hasufell@posteo.de>
+-- Stability   :  experimental
+-- Portability :  portable
+--
+-- ShortByteStrings encoded as UTF16-LE, suitable for windows FFI calls.
+--
+-- Word16s are *always* in BE encoding (both input and output), so e.g. 'pack'
+-- takes a list of BE encoded @[Word16]@ and produces a UTF16-LE encoded ShortByteString.
+--
+-- Likewise, 'unpack' takes a UTF16-LE encoded ShortByteString and produces a list of BE encoded @[Word16]@.
+--
+-- Indices and lengths are always in respect to Word16, not Word8.
+--
+-- All functions will error out if the input string is not a valid UTF16 stream (uneven number of bytes).
+-- So use this module with caution.
 module AFP.Data.ByteString.Short.Word16 (
 
   -- * Introducing and eliminating 'ShortByteString's
@@ -31,8 +51,8 @@ module AFP.Data.ByteString.Short.Word16 (
 
   -- * Transforming ShortByteStrings
   map,
+  reverse,
   intercalate,
-
 
   -- * Reducing 'ShortByteString's (folds)
   foldl,
@@ -59,7 +79,11 @@ module AFP.Data.ByteString.Short.Word16 (
 
   -- ** Breaking strings
   take,
+  takeEnd,
+  takeWhile,
+  takeWhileEnd,
   drop,
+  dropEnd,
   dropWhile,
   dropWhileEnd,
   breakEnd,
@@ -70,14 +94,12 @@ module AFP.Data.ByteString.Short.Word16 (
   split,
   splitWith,
   stripSuffix,
+  stripPrefix,
 
   -- * Predicates
   isInfixOf,
   isPrefixOf,
   isSuffixOf,
-
-  -- ** Search for arbitrary substrings
-  breakSubstring,
 
   -- * Searching ShortByteStrings
 
@@ -91,8 +113,11 @@ module AFP.Data.ByteString.Short.Word16 (
 
   -- * Indexing ShortByteStrings
   index,
+  indexMaybe,
+  (!?),
   elemIndex,
   elemIndices,
+  count,
   findIndex,
   findIndices,
 
@@ -104,14 +129,13 @@ module AFP.Data.ByteString.Short.Word16 (
 
   -- ** Using ShortByteStrings as 'CString's
   useAsCWString,
-  useAsCWStringLen,
+  useAsCWStringLen
   )
 where
 
 import AFP.Data.ByteString.Short
-    ( append, intercalate, isInfixOf, isPrefixOf, isSuffixOf, stripSuffix, fromShort, toShort, concat, breakSubstring )
+    ( append, intercalate, isInfixOf, isPrefixOf, isSuffixOf, stripSuffix, stripPrefix, fromShort, toShort, concat )
 import AFP.Data.ByteString.Short.Internal
-import qualified Data.ByteString.Short.Internal as BS
 import Data.Word16
 
 import Data.Bifunctor
@@ -119,6 +143,7 @@ import Data.Bifunctor
 import Prelude hiding
     ( all
     , any
+    , reverse
     , break
     , concat
     , drop
@@ -140,13 +165,13 @@ import Prelude hiding
     , splitAt
     , tail
     , take
+    , takeWhile
     )
 import GHC.List (errorEmptyList)
 import qualified Data.Foldable as Foldable
 import Data.ByteString.Short
     ( ShortByteString
     , empty
-    , index
     , null
     )
 import GHC.Exts
@@ -154,7 +179,7 @@ import GHC.Word
 import GHC.ST
     ( ST (ST) )
 
-import qualified Data.ByteString.Short as BS
+import qualified Data.ByteString.Short.Internal as BS
 import qualified Data.List as List
 
 
@@ -191,11 +216,10 @@ infixl 5 `snoc`
 -- 
 -- Note: copies the entire byte array
 snoc :: ShortByteString -> Word16 -> ShortByteString
-snoc = \(assertEven -> sbs) c -> let l = length sbs
-                                     nl = l + 1
-                                     nl8 = nl * 2
-  in create nl8 $ \mba -> do
-      copyByteArray (asBA sbs) 0 mba 0 nl8
+snoc = \(assertEven -> sbs) c -> let l = BS.length sbs
+                                     nl = l + 2
+  in create nl $ \mba -> do
+      copyByteArray (asBA sbs) 0 mba 0 nl
       writeWord16Array mba l c
 {-# INLINE snoc #-}
 
@@ -203,19 +227,18 @@ snoc = \(assertEven -> sbs) c -> let l = length sbs
 --
 -- Note: copies the entire byte array
 cons :: Word16 -> ShortByteString -> ShortByteString
-cons c = \(assertEven -> sbs) -> let l = length sbs
-                                     nl = l + 1
-                                     nl8 = nl * 2
-  in create nl8 $ \mba -> do
+cons c = \(assertEven -> sbs) -> let l = BS.length sbs
+                                     nl = l + 2
+  in create nl $ \mba -> do
       writeWord16Array mba 0 c
-      copyByteArray (asBA sbs) 0 mba 2 nl8
+      copyByteArray (asBA sbs) 0 mba 2 nl
 {-# INLINE cons #-}
 
 -- | /O(1)/ Extract the last element of a ShortByteString, which must be finite and at least one Word16.
 -- An exception will be thrown in the case of an empty ShortByteString.
 last :: ShortByteString -> Word16
 last = \(assertEven -> sbs) ->
-  indexWord16Array (asBA sbs) (length sbs - 1)
+  indexWord16Array (asBA sbs) (BS.length sbs - 2)
 {-# INLINE last #-}
 
 -- | /O(n)/ Extract the elements after the head of a ShortByteString, which must at least one Word16.
@@ -224,10 +247,12 @@ last = \(assertEven -> sbs) ->
 -- Note: copies the entire byte array
 tail :: ShortByteString -> ShortByteString
 tail = \(assertEven -> sbs) -> 
-  let l = length sbs
-      nl = l - 1
-      nl8 = nl * 2
-  in create nl8 $ \mba -> copyByteArray (asBA sbs) 2 mba 0 nl8
+  let l = BS.length sbs
+      nl = l - 2
+  in if
+      | l <= 0 -> sbs
+      | l <= 2 -> empty
+      | otherwise -> create nl $ \mba -> copyByteArray (asBA sbs) 2 mba 0 nl
 {-# INLINE tail #-}
 
 -- | /O(1)/ Extract the first element of a ShortByteString, which must be at least one Word16.
@@ -242,10 +267,12 @@ head = \(assertEven -> sbs) -> indexWord16Array (asBA sbs) 0
 -- Note: copies the entire byte array
 init :: ShortByteString -> ShortByteString
 init = \(assertEven -> sbs) ->
-  let l = length sbs
-      nl = l - 1
-      nl8 = nl * 2
-   in create nl8 $ \mba -> copyByteArray (asBA sbs) 0 mba 0 nl8
+  let l = BS.length sbs
+      nl = l - 2
+  in if
+      | l <= 0 -> sbs
+      | l <= 2 -> empty
+      | otherwise   -> create nl $ \mba -> copyByteArray (asBA sbs) 0 mba 0 nl
 {-# INLINE init #-}
 
 
@@ -256,9 +283,9 @@ init = \(assertEven -> sbs) ->
 -- element of @xs@.
 map :: (Word16 -> Word16) -> ShortByteString -> ShortByteString
 map f = \(assertEven -> sbs) ->
-    let l = length sbs
+    let l = BS.length sbs
         ba = asBA sbs
-    in create (l * 2) (\mba -> go ba mba 0 l)
+    in create l (\mba -> go ba mba 0 l)
   where
     go :: BA -> MBA s -> Int -> Int -> ST s ()
     go !ba !mba !i !l
@@ -266,7 +293,22 @@ map f = \(assertEven -> sbs) ->
       | otherwise = do
           let w = indexWord16Array ba i
           writeWord16Array mba i (f w)
-          go ba mba (i+1) l
+          go ba mba (i+2) l
+
+-- | /O(n)/ 'reverse' @xs@ efficiently returns the elements of @xs@ in reverse order.
+reverse :: ShortByteString -> ShortByteString
+reverse = \(assertEven -> sbs) ->
+    let l = BS.length sbs
+        ba = asBA sbs
+    in create l (\mba -> go ba mba 0 l)
+  where
+    go :: BA -> MBA s -> Int -> Int -> ST s ()
+    go !ba !mba !i !l
+      | i >= l = return ()
+      | otherwise = do
+          let w = indexWord16Array ba i
+          writeWord16Array mba (l - 2 - i) w
+          go ba mba (i+2) l
 
 
 -- ---------------------------------------------------------------------
@@ -276,11 +318,11 @@ map f = \(assertEven -> sbs) ->
 -- if all elements of the 'ShortByteString' satisfy the predicate.
 all :: (Word16 -> Bool) -> ShortByteString -> Bool
 all k = \(assertEven -> sbs) -> 
-  let l = length sbs
+  let l = BS.length sbs
       ba = asBA sbs
       w = indexWord16Array ba
       go !n | n >= l = True
-            | otherwise = k (w n) && go (n + 1)
+            | otherwise = k (w n) && go (n + 2)
   in go 0
 
 
@@ -288,11 +330,11 @@ all k = \(assertEven -> sbs) ->
 -- any element of the 'ByteString' satisfies the predicate.
 any :: (Word16 -> Bool) -> ShortByteString -> Bool
 any k = \(assertEven -> sbs) ->
-  let l = length sbs
+  let l = BS.length sbs
       ba = asBA sbs
       w = indexWord16Array ba
       go !n | n >= l = False
-          | otherwise = k (w n) || go (n + 1)
+          | otherwise = k (w n) || go (n + 2)
   in go 0
 {-# INLINE [1] any #-}
 
@@ -311,8 +353,8 @@ replicate w c
     | otherwise = create (w * 2) (\mba -> go mba 0)
   where
     go mba ix
-      | ix < 0 || ix >= w = pure ()
-      | otherwise = writeWord16Array mba ix c >> go mba (ix + 1)
+      | ix < 0 || ix >= w * 2 = pure ()
+      | otherwise = writeWord16Array mba ix c >> go mba (ix + 2)
 {-# INLINE replicate #-}
 
 -- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr'
@@ -321,6 +363,10 @@ replicate w c
 -- returns 'Nothing' if it is done producing the ShortByteString or returns
 -- 'Just' @(a,b)@, in which case, @a@ is the next byte in the string,
 -- and @b@ is the seed value for further production.
+--
+-- This function is not efficient/safe. It will build a list of @[Word16]@
+-- and run the generator until it returns `Nothing`, otherwise recurse infinitely,
+-- then finally create a 'ShortByteString'.
 --
 -- Examples:
 --
@@ -340,12 +386,15 @@ unfoldr f x0 = packBytesRev $ go x0 mempty
 -- argument to 'unfoldrN'.  This function is more efficient than 'unfoldr'
 -- when the maximum length of the result is known.
 --
+-- This function is not efficient. It will build a full list of @[Word8]@
+-- before creating a 'ShortByteString'.
+--
 -- The following equation relates 'unfoldrN' and 'unfoldr':
 --
 -- > fst (unfoldrN n f s) == take n (unfoldr f s)
 --
 unfoldrN :: Int -> (a -> Maybe (Word16, a)) -> a -> (ShortByteString, Maybe a)
-unfoldrN i f x0 = first packBytesRev $ go i x0 mempty
+unfoldrN i f x0 = first packBytesRev $ go (i - 1) x0 mempty
  where
    go i' x words'
     | i' < 0     = (words', Just x)
@@ -353,6 +402,10 @@ unfoldrN i f x0 = first packBytesRev $ go i x0 mempty
                     Nothing -> (words', Nothing)
                     Just (w, x') -> go (i' - 1) x' (w:words')
 {-# INLINE unfoldrN #-}
+
+
+-- --------------------------------------------------------------------
+-- Predicates
 
 
 
@@ -367,20 +420,70 @@ take :: Int  -- ^ number of Word16
      -> ShortByteString
      -> ShortByteString
 take = \n -> \(assertEven -> sbs) ->
-  let len = min (length sbs) (max 0 n )
+  let len = min (length sbs) (max 0 n)
       len8 = len * 2
   in create len8 $ \mba -> copyByteArray (asBA sbs) 0 mba 0 len8
 {-# INLINE take #-}
+
+
+-- | /O(1)/ @'takeEnd' n xs@ is equivalent to @'drop' ('length' xs - n) xs@.
+-- Takes @n@ elements from end of bytestring.
+--
+-- >>> takeEnd 3 "a\NULb\NULc\NULd\NULe\NULf\NULg\NUL"
+-- "e\NULf\NULg\NUL"
+-- >>> takeEnd 0 "a\NULb\NULc\NULd\NULe\NULf\NULg\NUL"
+-- ""
+-- >>> takeEnd 4 "a\NULb\NULc\NUL"
+-- "a\NULb\NULc\NUL"
+takeEnd :: Int -> ShortByteString -> ShortByteString
+takeEnd n sbs
+    | n >= length sbs  = sbs
+    | n <= 0           = empty
+    | otherwise        = drop (length sbs - n) sbs
+{-# INLINE takeEnd #-}
+
+-- | Similar to 'P.takeWhile',
+-- returns the longest (possibly empty) prefix of elements
+-- satisfying the predicate.
+takeWhile :: (Word16 -> Bool) -> ShortByteString -> ShortByteString
+takeWhile f ps = take (findIndexOrLength (not . f) ps) ps
+{-# INLINE [1] takeWhile #-}
+
+-- | Returns the longest (possibly empty) suffix of elements
+-- satisfying the predicate.
+--
+-- @'takeWhileEnd' p@ is equivalent to @'reverse' . 'takeWhile' p . 'reverse'@.
+takeWhileEnd :: (Word16 -> Bool) -> ShortByteString -> ShortByteString
+takeWhileEnd f ps = drop (findFromEndUntil (not . f) ps) ps
+{-# INLINE takeWhileEnd #-}
+
 
 -- | /O(n)/ 'drop' @n@ @xs@ returns the suffix of @xs@ after the first n elements, or @[]@ if @n > 'length' xs@.
 --
 -- Note: copies the entire byte array
 drop  :: Int -> ShortByteString -> ShortByteString
 drop = \n -> \(assertEven -> sbs) ->
-  let len = max 0 (length sbs - max 0 n)
-      len8 = len * 2
-  in create len8 $ \mba -> copyByteArray (asBA sbs) (n * 2) mba 0 len8
+  let len = length sbs
+      newLen = max 0 (len - max 0 n)
+  in if | n <= 0          -> sbs
+        | n >= length sbs -> empty
+        | otherwise       -> create (newLen * 2) $ \mba -> copyByteArray (asBA sbs) (n * 2) mba 0 (newLen * 2)
 {-# INLINE drop #-}
+
+-- | /O(1)/ @'dropEnd' n xs@ is equivalent to @'take' ('length' xs - n) xs@.
+-- Drops @n@ elements from end of bytestring.
+--
+-- >>> dropEnd 3 "a\NULb\NULc\NULd\NULe\NULf\NULg\NUL"
+-- "a\NULb\NULc\NULd\NUL"
+-- >>> dropEnd 0 "a\NULb\NULc\NULd\NULe\NULf\NULg\NUL"
+-- "a\NULb\NULc\NULd\NULe\NULf\NULg\NUL"
+-- >>> dropEnd 4 "a\NULb\NULc\NUL"
+-- ""
+dropEnd :: Int -> ShortByteString -> ShortByteString
+dropEnd n sbs
+    | n <= 0           = sbs
+    | n >= length sbs  = empty
+    | otherwise        = take (length sbs - n) sbs
 
 -- | Similar to 'P.dropWhile',
 -- drops the longest (possibly empty) prefix of elements
@@ -529,7 +632,7 @@ foldr' k v = Foldable.foldr' k v . unpack . assertEven
 -- argument, and thus must be applied to non-empty 'ShortByteString's.
 -- An exception will be thrown in the case of an empty ShortByteString.
 foldl1 :: (Word16 -> Word16 -> Word16) -> ShortByteString -> Word16
-foldl1 k = List.foldr1 k . unpack . assertEven
+foldl1 k = List.foldl1 k . unpack . assertEven
 {-# INLINE foldl1 #-}
 
 -- | 'foldl1'' is like 'foldl1', but strict in the accumulator.
@@ -547,18 +650,44 @@ foldr1 k = List.foldr1 k . unpack . assertEven
 -- | 'foldr1'' is a variant of 'foldr1', but is strict in the
 -- accumulator.
 foldr1' :: (Word16 -> Word16 -> Word16) -> ShortByteString -> Word16
-foldr1' k = _foldr1' k . unpack . assertEven
- where
-  -- | A strict version of 'foldr1'.
-  _foldr1'                  :: (a -> a -> a) -> [a] -> a
-  _foldr1' f (x:xs)         =  Foldable.foldr' f x xs
-  _foldr1' _ []             =  errorEmptyList "foldl1'"
-{-# INLINE foldr1' #-}
-
+foldr1' k = \(assertEven -> sbs) -> if null sbs then errorEmptyList "foldr1'" else foldr' k (last sbs) (init sbs)
 
 
 -- --------------------------------------------------------------------
 -- Searching ShortByteString
+
+-- | /O(1)/ 'ShortByteString' index (subscript) operator, starting from 0.
+index :: ShortByteString -> Int -> Word16
+index = \(assertEven -> sbs) i ->
+  let ba = asBA sbs
+      w = indexWord16Array ba
+  in if
+    | i >= 0 && i < length sbs -> w (i * 2)
+    | otherwise                -> error $ "Data.ByteString.Short.Word16.index: error in array index; "
+                                   ++ show i ++ " not in range [0.." ++ show (length sbs) ++ ")"
+
+-- | /O(1)/ 'ShortByteString' index, starting from 0, that returns 'Just' if:
+--
+-- > 0 <= n < length bs
+--
+-- @since 0.11.0.0
+indexMaybe :: ShortByteString -> Int -> Maybe Word16
+indexMaybe = \(assertEven -> sbs) i ->
+  let ba = asBA sbs
+      w = indexWord16Array ba
+  in if
+    | i >= 0 && i < length sbs -> Just (w (i * 2))
+    | otherwise                -> Nothing
+{-# INLINE indexMaybe #-}
+
+-- | /O(1)/ 'ShortByteString' index, starting from 0, that returns 'Just' if:
+--
+-- > 0 <= n < length bs
+--
+-- @since 0.11.0.0
+(!?) :: ShortByteString -> Int -> Maybe Word16
+(!?) = indexMaybe
+{-# INLINE (!?) #-}
 
 -- | /O(n)/ 'elem' is the 'ShortByteString' membership predicate.
 elem :: Word16 -> ShortByteString -> Bool
@@ -609,17 +738,21 @@ elemIndex k = findIndex (==k)
 elemIndices :: Word16 -> ShortByteString -> [Int]
 elemIndices k = findIndices (==k)
 
+-- | count returns the number of times its argument appears in the ShortByteString
+count :: Word16 -> ShortByteString -> Int
+count w = List.length . elemIndices w
+
 -- | /O(n)/ The 'findIndex' function takes a predicate and a 'ShortByteString' and
 -- returns the index of the first element in the ByteString
 -- satisfying the predicate.
 findIndex :: (Word16 -> Bool) -> ShortByteString -> Maybe Int
 findIndex k = \sbs ->
-  let l = length sbs
+  let l = BS.length sbs
       ba = asBA sbs
       w = indexWord16Array ba
       go !n | n >= l    = Nothing
-            | k (w n)   = Just n
-            | otherwise = go (n + 1)
+            | k (w n)   = Just (n `div` 2)
+            | otherwise = go (n + 2)
   in go 0
 {-# INLINE findIndex #-}
 
@@ -627,12 +760,12 @@ findIndex k = \sbs ->
 -- indices of all elements satisfying the predicate, in ascending order.
 findIndices :: (Word16 -> Bool) -> ShortByteString -> [Int]
 findIndices k = \sbs ->
-  let l = length sbs
+  let l = BS.length sbs
       ba = asBA sbs
       w = indexWord16Array ba
       go !n | n >= l    = []
-            | k (w n)   = n : go (n + 1)
-            | otherwise = go (n + 1)
+            | k (w n)   = (n `div` 2) : go (n + 2)
+            | otherwise = go (n + 2)
   in go 0
 {-# INLINE [1] findIndices #-}
 
@@ -640,13 +773,30 @@ findIndices k = \sbs ->
 -- --------------------------------------------------------------------
 -- Internal
 
-writeWord16Array :: MBA s -> Int -> Word16 -> ST s ()
+-- | This isn't strictly Word16 array write. Instead it's two consecutive Word8 array
+-- writes to avoid endianness issues due to primops doing automatic alignment based
+-- on host platform. We want to always write LE to the byte array.
+writeWord16Array :: MBA s
+                 -> Int      -- ^ Word8 index (not Word16)
+                 -> Word16
+                 -> ST s ()
 writeWord16Array (MBA# mba#) (I# i#) (W16# w#) =
-  ST $ \s -> case writeWord16Array# mba# i# w# s of
-               s' -> (# s', () #)
+  case encodeWord16LE# w# of
+    (# lsb#, msb# #) ->
+      (ST $ \s -> case writeWord8Array# mba# i# lsb# s of
+          s' -> (# s', () #)) >>
+      (ST $ \s -> case writeWord8Array# mba# (i# +# 1#) msb# s of
+          s' -> (# s', () #))
 
-indexWord16Array :: BA -> Int -> Word16
-indexWord16Array (BA# ba#) (I# i#) = W16# (indexWord16Array# ba# i#)
+-- | This isn't strictly Word16 array read. Instead it's two Word8 array reads
+-- to avoid endianness issues due to primops doing automatic alignment based
+-- on host platform. We expect the byte array to be LE always.
+indexWord16Array :: BA
+                 -> Int      -- ^ Word8 index (not Word16)
+                 -> Word16
+indexWord16Array (BA# ba#) (I# i#) = 
+  case (# indexWord8Array# ba# i#, indexWord8Array# ba# (i# +# 1#) #) of
+    (# lsb#, msb# #) -> W16# ((decodeWord16LE# (# lsb#, msb# #)))
 
 
 packBytes :: [Word16] -> ShortByteString
@@ -660,69 +810,71 @@ packLenBytes len ws0 =
     go !_   !_ []     = return ()
     go !mba !i (w:ws) = do
       writeWord16Array mba i w
-      go mba (i+1) ws
+      go mba (i+2) ws
 
 packBytesRev :: [Word16] -> ShortByteString
-packBytesRev cs = packLenBytesRev (List.length cs) cs
+packBytesRev cs = packLenBytesRev ((List.length cs) * 2) cs
 
 packLenBytesRev :: Int -> [Word16] -> ShortByteString
 packLenBytesRev len ws0 =
-    create (len * 2) (\mba -> go mba len ws0)
+    create len (\mba -> go mba len ws0)
   where
     go :: MBA s -> Int -> [Word16] -> ST s ()
     go !_   !_ []     = return ()
     go !mba !i (w:ws) = do
-      writeWord16Array mba (i - 1) w
-      go mba (i - 1) ws
+      writeWord16Array mba (i - 2) w
+      go mba (i - 2) ws
 
 
 unpackBytes :: ShortByteString -> [Word16]
-unpackBytes bs = unpackAppendBytesLazy bs []
-
-unpackAppendBytesLazy :: ShortByteString -> [Word16] -> [Word16]
-unpackAppendBytesLazy sbs = go 0 (length sbs)
+unpackBytes sbs = go len []
   where
-    sz = 100
+    len = BS.length sbs
+    go !i !acc
+      | i < 1     = acc
+      | otherwise = let !w = indexWord16Array (asBA sbs) (i - 2)
+                    in go (i - 2) (w:acc)
 
-    go off len ws
-      | len <= sz = unpackAppendBytesStrict sbs off len ws
-      | otherwise = unpackAppendBytesStrict sbs off sz  remainder
-                      where remainder = go (off+sz) (len-sz) ws
-
-
-unpackAppendBytesStrict :: ShortByteString -> Int -> Int -> [Word16] -> [Word16]
-unpackAppendBytesStrict !sbs off len = go (off-1) (off-1 + len)
-  where
-    go !sentinal !i !acc
-      | i == sentinal = acc
-      | otherwise     = let !w = indexWord16Array (asBA sbs) i
-                         in go sentinal (i-1) (w:acc)
-
-
+-- Returns the index of the first match or the length of the whole
+-- bytestring if nothing matched.
 findIndexOrLength :: (Word16 -> Bool) -> ShortByteString -> Int
 findIndexOrLength k sbs = go 0
   where
-    l = length sbs
+    l = BS.length sbs
     ba = asBA sbs
     w = indexWord16Array ba
-    go !n | n >= l     = l
-          | k (w n)    = n
-          | otherwise  = go (n + 1)
+    go !n | n >= l     = l `div` 2
+          | k (w n)    = n `div` 2
+          | otherwise  = go (n + 2)
 {-# INLINE findIndexOrLength #-}
 
 
+-- | Returns the length of the substring matching, not the index.
+-- If no match, returns 0.
 findFromEndUntil :: (Word16 -> Bool) -> ShortByteString -> Int
-findFromEndUntil k sbs = go (length sbs - 1)
+findFromEndUntil k sbs = go (BS.length sbs - 2)
   where
     ba = asBA sbs
     w = indexWord16Array ba
     go !n | n < 0     = 0
-          | k (w n)   = n + 1
-          | otherwise = go (n - 1)
+          | k (w n)   = (n `div` 2) + 1
+          | otherwise = go (n - 2)
 {-# INLINE findFromEndUntil #-}
 
 
 assertEven :: ShortByteString -> ShortByteString
-assertEven sbs
-  | even (BS.length sbs) = sbs
-  | otherwise = error "Uneven number of bytes. This is not a Word16 bytestream."
+assertEven sbs@(BS.SBS barr#)
+  | even (I# (sizeofByteArray# barr#)) = sbs
+  | otherwise = error ("Uneven number of bytes: " <> show (BS.length sbs) <> ". This is not a Word16 bytestream: " <> show sbs)
+
+
+
+encodeWord16LE# :: Word# -- ^ Word16
+                -> (# Word#, Word# #) -- ^ Word8 (LSB, MSB)
+encodeWord16LE# x# = (# (x# `and#` int2Word# 0xff#)
+                     ,  ((x# `and#` int2Word# 0xff00#) `shiftRL#` 8#) #)
+
+decodeWord16LE# :: (# Word#, Word# #) -- ^ Word8 (LSB, MSB)
+                -> Word#              -- ^ Word16
+decodeWord16LE# (# lsb#, msb# #) = ((msb# `shiftL#` 8#) `or#` lsb#)
+
