@@ -43,7 +43,6 @@ import Control.Exception ( throwIO )
 #if MIN_VERSION_bytestring(0,10,9)
 import Data.ByteString.Internal (c_strlen)
 #else
-import Data.Word
 import Foreign.C.Types
 #endif
 

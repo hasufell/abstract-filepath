@@ -59,12 +59,12 @@ library
 
   build-depends:
     , abstract-filepath
-    , abstract-filepath-types
     , abstract-filepath-bytestring
-    , base                     >=4.9.1.0 && <5
-    , bytestring               >=0.9.2   && <0.12
-    , time                     >=1.2     && <1.13
-    , word8                    ^>=0.1
+    , abstract-filepath-types
+    , base                          >=4.9.1.0 && <5
+    , bytestring                    >=0.9.2   && <0.12
+    , time                          >=1.2     && <1.13
+    , word8                         ^>=0.1
 
   if os(windows)
     -- This package currently supports neither Cygwin nor MinGW,

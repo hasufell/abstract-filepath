@@ -137,7 +137,9 @@ import AFP.Data.ByteString.Short
     ( append, intercalate, isInfixOf, isPrefixOf, isSuffixOf, stripSuffix, stripPrefix, fromShort, toShort, concat )
 import AFP.Data.ByteString.Short.Internal
 import Data.Word16
-
+#if !MIN_VERSION_base(4,13,0)
+import Data.Monoid ((<>))
+#endif
 import Data.Bifunctor
     ( first, bimap )
 import Prelude hiding
