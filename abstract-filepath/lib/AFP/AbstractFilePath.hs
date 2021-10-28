@@ -169,7 +169,7 @@ import AFP.OsString.Internal.Types
 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 import qualified AFP.AbstractFilePath.Windows as C
-import qualified AFP.Data.ByteString.Short.Word16 as BS
+import qualified Data.ByteString.Short.Word16 as BS
 import Data.Word16
     ( Word16, _period )
 #else
