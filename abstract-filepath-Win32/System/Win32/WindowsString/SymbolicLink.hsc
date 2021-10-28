@@ -24,7 +24,7 @@
    Administrator privilege in the current process. Supply a 'True' flag in
    addition to the target and link name to enable this behavior.
 -}
-module System.Win32.SymbolicLink
+module System.Win32.WindowsString.SymbolicLink
   ( SymbolicLinkFlags
   , sYMBOLIC_LINK_FLAG_FILE
   , sYMBOLIC_LINK_FLAG_DIRECTORY
@@ -36,8 +36,9 @@ module System.Win32.SymbolicLink
   ) where
 
 import Data.Bits ((.|.))
-import System.Win32.Types
-import System.Win32.File ( failIfFalseWithRetry_ )
+import System.Win32.WindowsString.Types
+import System.Win32.WindowsString.File ( failIfFalseWithRetry_ )
+import AFP.AbstractFilePath.Windows
 
 ##include "windows_cconv.h"
 
@@ -55,13 +56,13 @@ type SymbolicLinkFlags = DWORD
 -- except 'createSymbolicLink''.
 --
 -- If you want to create symbolic link by Windows way, use 'createSymbolicLink'' instead.
-createSymbolicLink :: FilePath -- ^ Target file path
-                   -> FilePath -- ^ Symbolic link name
+createSymbolicLink :: WindowsFilePath -- ^ Target file path
+                   -> WindowsFilePath -- ^ Symbolic link name
                    -> SymbolicLinkFlags -> IO ()
 createSymbolicLink = flip createSymbolicLink'
 
-createSymbolicLinkFile :: FilePath -- ^ Target file path
-                       -> FilePath -- ^ Symbolic link name
+createSymbolicLinkFile :: WindowsFilePath -- ^ Target file path
+                       -> WindowsFilePath -- ^ Symbolic link name
                        -> Bool -- ^ Create the symbolic link with the unprivileged mode
                        -> IO ()
 createSymbolicLinkFile target link unprivileged =
@@ -73,8 +74,8 @@ createSymbolicLinkFile target link unprivileged =
         else sYMBOLIC_LINK_FLAG_FILE
     )
 
-createSymbolicLinkDirectory :: FilePath -- ^ Target file path
-                            -> FilePath -- ^ Symbolic link name
+createSymbolicLinkDirectory :: WindowsFilePath -- ^ Target file path
+                            -> WindowsFilePath -- ^ Symbolic link name
                             -> Bool -- ^ Create the symbolic link with the unprivileged mode
                             -> IO ()
 createSymbolicLinkDirectory target link unprivileged =
@@ -88,8 +89,8 @@ createSymbolicLinkDirectory target link unprivileged =
         else sYMBOLIC_LINK_FLAG_DIRECTORY
     )
 
-createSymbolicLink' :: FilePath -- ^ Symbolic link name
-                    -> FilePath -- ^ Target file path
+createSymbolicLink' :: WindowsFilePath -- ^ Symbolic link name
+                    -> WindowsFilePath -- ^ Target file path
                     -> SymbolicLinkFlags -> IO ()
 createSymbolicLink' link target flag = do
     withTString link $ \c_link ->

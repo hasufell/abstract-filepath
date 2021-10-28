@@ -1,8 +1,3 @@
-#if __GLASGOW_HASKELL__ >= 709
-{-# LANGUAGE Safe #-}
-#else
-{-# LANGUAGE Trustworthy #-}
-#endif
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Win32.Path
@@ -17,13 +12,14 @@
 --
 -----------------------------------------------------------------------------
 
-module System.Win32.Path (
+module System.Win32.WindowsString.Path (
    filepathRelativePathTo
  , pathRelativePathTo
  ) where
 
-import System.Win32.Types
-import System.Win32.File
+import System.Win32.WindowsString.Types
+import System.Win32.WindowsString.File
+import AFP.AbstractFilePath.Windows
 
 import Foreign
 
@@ -31,7 +27,7 @@ import Foreign
 
 #include <windows.h>
 
-filepathRelativePathTo :: FilePath -> FilePath -> IO FilePath
+filepathRelativePathTo :: WindowsFilePath -> WindowsFilePath -> IO WindowsFilePath
 filepathRelativePathTo from to =
   withTString from $ \p_from ->
   withTString to   $ \p_to   ->
@@ -42,7 +38,7 @@ filepathRelativePathTo from to =
     _ <- localFree p_AbsPath
     return path
 
-pathRelativePathTo :: FilePath -> FileAttributeOrFlag -> FilePath -> FileAttributeOrFlag -> IO FilePath
+pathRelativePathTo :: WindowsFilePath -> FileAttributeOrFlag -> WindowsFilePath -> FileAttributeOrFlag -> IO WindowsFilePath
 pathRelativePathTo from from_attr to to_attr =
   withTString from $ \p_from ->
   withTString to   $ \p_to   ->

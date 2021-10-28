@@ -9,14 +9,17 @@
 
    Utilities for primitive marshalling of Windows' C strings.
 -}
-module System.Win32.String
+module System.Win32.WindowsString.String
   ( LPSTR, LPCSTR, LPWSTR, LPCWSTR
   , TCHAR, LPTSTR, LPCTSTR, LPCTSTR_
   , withTString, withTStringLen, peekTString, peekTStringLen
   , newTString
   , withTStringBuffer, withTStringBufferLen
   ) where
-import System.Win32.Types
+import System.Win32.WindowsString.Types
+import AFP.OsString.Internal.Types
+import qualified Data.ByteString.Short as SBS
+import Data.Word8 (_nul)
 
 -- | Marshal a dummy Haskell string into a NUL terminated C wide string
 -- using temporary storage.
@@ -30,7 +33,7 @@ import System.Win32.Types
 --
 withTStringBuffer :: Int -> (LPTSTR -> IO a) -> IO a
 withTStringBuffer maxLength
-  = let dummyBuffer = replicate maxLength '\0'
+  = let dummyBuffer = WS $ SBS.pack $ replicate (if even maxLength then maxLength else maxLength + 1) _nul
     in  withTString dummyBuffer
 
 -- | Marshal a dummy Haskell string into a C wide string (i.e. wide
@@ -46,6 +49,6 @@ withTStringBuffer maxLength
 --
 withTStringBufferLen :: Int -> ((LPTSTR, Int) -> IO a) -> IO a
 withTStringBufferLen maxLength
-  = let dummyBuffer = replicate maxLength '\0'
+  = let dummyBuffer = WS $ SBS.pack $ replicate (if even maxLength then maxLength else maxLength + 1) _nul
     in  withTStringLen dummyBuffer
 

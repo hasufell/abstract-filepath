@@ -1,8 +1,3 @@
-#if __GLASGOW_HASKELL__ >= 709
-{-# LANGUAGE Safe #-}
-#else
-{-# LANGUAGE Trustworthy #-}
-#endif
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  System.Win32.DLL
@@ -17,7 +12,7 @@
 --
 -----------------------------------------------------------------------------
 
-module System.Win32.DLL
+module System.Win32.WindowsString.DLL
     ( disableThreadLibraryCalls
     , freeLibrary
     , getModuleFileName
@@ -31,11 +26,12 @@ module System.Win32.DLL
     , lOAD_WITH_ALTERED_SEARCH_PATH
     ) where
 
-import System.Win32.Types
+import System.Win32.WindowsString.Types
 
 import Foreign
 import Foreign.C
 import Data.Maybe (fromMaybe)
+import AFP.OsString.Windows
 
 ##include "windows_cconv.h"
 
@@ -53,7 +49,7 @@ freeLibrary hmod =
 foreign import WINDOWS_CCONV unsafe "windows.h FreeLibrary"
   c_FreeLibrary :: HMODULE -> IO Bool
 
-getModuleFileName :: HMODULE -> IO String
+getModuleFileName :: HMODULE -> IO WindowsString
 getModuleFileName hmod =
   allocaArray 512 $ \ c_str -> do
   failIfFalse_ "GetModuleFileName" $ c_GetModuleFileName hmod c_str 512
@@ -61,7 +57,7 @@ getModuleFileName hmod =
 foreign import WINDOWS_CCONV unsafe "windows.h GetModuleFileNameW"
   c_GetModuleFileName :: HMODULE -> LPTSTR -> Int -> IO Bool
 
-getModuleHandle :: Maybe String -> IO HMODULE
+getModuleHandle :: Maybe WindowsString -> IO HMODULE
 getModuleHandle mb_name =
   maybeWith withTString mb_name $ \ c_name ->
   failIfNull "GetModuleHandle" $ c_GetModuleHandle c_name
@@ -76,7 +72,7 @@ getProcAddress hmod procname =
 foreign import WINDOWS_CCONV unsafe "windows.h GetProcAddress"
   c_GetProcAddress :: HMODULE -> LPCSTR -> IO Addr
 
-loadLibrary :: String -> IO HINSTANCE
+loadLibrary :: WindowsString -> IO HINSTANCE
 loadLibrary name =
   withTString name $ \ c_name ->
   failIfNull "LoadLibrary" $ c_LoadLibrary c_name
@@ -90,17 +86,18 @@ type LoadLibraryFlags = DWORD
  , lOAD_WITH_ALTERED_SEARCH_PATH = LOAD_WITH_ALTERED_SEARCH_PATH
  }
 
-loadLibraryEx :: String -> HANDLE -> LoadLibraryFlags -> IO HINSTANCE
+loadLibraryEx :: WindowsString -> HANDLE -> LoadLibraryFlags -> IO HINSTANCE
 loadLibraryEx name h flags =
   withTString name $ \ c_name ->
   failIfNull "LoadLibraryEx" $ c_LoadLibraryEx c_name h flags
 foreign import WINDOWS_CCONV unsafe "windows.h LoadLibraryExW"
   c_LoadLibraryEx :: LPCTSTR -> HANDLE -> LoadLibraryFlags -> IO HINSTANCE
 
-setDllDirectory :: Maybe String -> IO ()
+setDllDirectory :: Maybe WindowsString -> IO ()
 setDllDirectory name =
-  maybeWith withTString name $ \ c_name ->
-  failIfFalse_ (unwords ["SetDllDirectory", fromMaybe "NULL" name]) $ c_SetDllDirectory c_name
+  maybeWith withTString name $ \ c_name -> do
+    let nameS = name >>= fromPlatformString
+    failIfFalse_ (unwords ["SetDllDirectory", fromMaybe "NULL" nameS]) $ c_SetDllDirectory c_name
 
 foreign import WINDOWS_CCONV unsafe "windows.h SetDllDirectoryW"
   c_SetDllDirectory :: LPTSTR -> IO BOOL

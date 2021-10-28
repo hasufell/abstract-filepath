@@ -6,10 +6,10 @@ author:             Alastair Reid, shelarcy, Tamar Christina
 copyright:
   Alastair Reid, 1999-2003; shelarcy, 2012-2013; Tamar Christina, 2016-2020
 
-maintainer:         Haskell Libraries <libraries@haskell.org>
-bug-reports:        https://github.com/haskell/win32/issues
-homepage:           https://github.com/haskell/win32
-category:           System, Graphics
+maintainer:         Julian Ospald <hasufell@posteo.de>
+bug-reports:        https://github.com/hasufell/abstract-filepath/issues
+homepage:           https://github.com/hasufell/abstract-filepath
+category:           System
 synopsis:
   A binding to Windows Win32 API utilizing abstract filepaths.
 
@@ -44,31 +44,30 @@ library
 
   build-depends:
       abstract-filepath
-    , shortbytestring
     , abstract-filepath-types
     , base                          >=4.5 && <5
     , filepath
+    , shortbytestring
+    , word8
+    , Win32                         >= 2.12.0.1 && < 2.13
 
   -- Black list hsc2hs 0.68.6 which is horribly broken.
   build-tool-depends: hsc2hs:hsc2hs >0 && <0.68.6 || >0.68.6
   ghc-options:        -Wall -fno-warn-name-shadowing
   cc-options:         -fno-strict-aliasing
   exposed-modules:
-    System.Win32.DebugApi
-    System.Win32.DLL
-    System.Win32.File
-    System.Win32.FileMapping
-    System.Win32.HardLink
-    System.Win32.Info
-    System.Win32.Mem
-    System.Win32.Path
-    System.Win32.String
-    System.Win32.SymbolicLink
-    System.Win32.Time
-    System.Win32.Types
-    System.Win32.Utils
     System.Win32.WindowsString.Types
-    System.Win32.Word
+    System.Win32.WindowsString.DebugApi
+    System.Win32.WindowsString.DLL
+    System.Win32.WindowsString.String
+    System.Win32.WindowsString.File
+    System.Win32.WindowsString.Time
+    System.Win32.WindowsString.Info
+    System.Win32.WindowsString.FileMapping
+    System.Win32.WindowsString.HardLink
+    System.Win32.WindowsString.Path
+    System.Win32.WindowsString.SymbolicLink
+    System.Win32.WindowsString.Utils
 
   extra-libraries:
     user32
