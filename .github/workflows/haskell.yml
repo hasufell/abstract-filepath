@@ -19,7 +19,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: haskell/actions/setup@v1.2.3
+    - uses: haskell/actions/setup@v1.2.6
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: ${{ matrix.cabal }}
@@ -101,7 +101,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: haskell/actions/setup@v1.2
+    - uses: haskell/actions/setup@v1.2.6
       with:
         enable-stack: true
         stack-no-global: true
