@@ -3,6 +3,7 @@
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module AFP.OsString.Internal.Types
   (
@@ -18,6 +19,8 @@ module AFP.OsString.Internal.Types
 where
 
 
+import Control.DeepSeq
+import Data.Data
 import Data.Word
 import Data.Bits
     ( (.&.) )
@@ -42,6 +45,7 @@ import qualified Data.Text.Internal.Encoding.Utf8 as U8
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
 #endif
+import GHC.Generics (Generic)
 
 
 import qualified Data.ByteString.Short as BS
@@ -59,7 +63,7 @@ import qualified Language.Haskell.TH.Syntax as TH
 
 -- | Commonly used windows string as UTF16 bytes.
 newtype WindowsString = WS { unWFP :: BS.ShortByteString }
-  deriving (Eq, Ord, Semigroup, Monoid)
+  deriving (Eq, Ord, Semigroup, Monoid, Typeable, Generic, NFData)
 
 instance Lift WindowsString where
   lift (WS bs)
@@ -73,7 +77,7 @@ instance Lift WindowsString where
 -- | Commonly used Posix string as uninterpreted @char[]@
 -- array.
 newtype PosixString   = PS { unPFP :: BS.ShortByteString }
-  deriving (Eq, Ord, Semigroup, Monoid)
+  deriving (Eq, Ord, Semigroup, Monoid, Typeable, Generic, NFData)
 
 instance Lift PosixString where
   lift (PS bs)
@@ -103,9 +107,9 @@ type PlatformString = PosixString
 #endif
 
 newtype WindowsChar = WW Word16
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Typeable, Generic, NFData)
 newtype PosixChar   = PW Word8
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Typeable, Generic, NFData)
 
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 type PlatformChar = WindowsChar
@@ -124,6 +128,7 @@ type PlatformChar = PosixChar
 -- dealing with the internals isn't generally recommended, but supported
 -- in case you need to write platform specific code.
 newtype OsString = OsString PlatformString
+  deriving (Typeable, Generic, NFData)
 
 -- | Byte equality of the internal representation.
 instance Eq OsString where
@@ -187,7 +192,7 @@ instance Show OsString where
 -- On Windows, this is restricted to two-octet codepoints 'Word16',
 -- on POSIX one-octet ('Word8').
 newtype OsChar = OsChar PlatformChar
-  deriving Show
+  deriving (Show, Typeable, Generic, NFData)
 
 -- | Byte equality of the internal representation.
 instance Eq OsChar where
