@@ -1,0 +1,132 @@
+name: Haskell CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-cabal:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        ghc: ['8.0.2', '8.2.2', '8.4.4', '8.6.5', '8.8.4', '8.10.7']
+        cabal: ['3.6.2.0']
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: haskell/actions/setup@v1.2.6
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: ${{ matrix.cabal }}
+
+    - name: create ~/.local/bin
+      run: mkdir -p "$HOME/.local/bin"
+      shell: bash
+
+    - name: Add ~/.local/bin to PATH
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+      shell: bash
+
+    - name: Cache
+      uses: actions/cache@v1
+      env:
+        cache-name: cache-cabal
+      with:
+        path: ~/.cabal
+        key: ${{ runner.os }}-${{ matrix.ghc }}-${{ matrix.cabal }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.ghc }}-${{ matrix.cabal }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-${{ matrix.ghc }}-${{ matrix.cabal }}-build-
+          ${{ runner.os }}-${{ matrix.ghc }}-
+          ${{ runner.os }}-
+
+    - name: Update cabal index
+      run: cabal update
+      shell: bash
+
+    - name: Install hspec-discover
+      run: cabal install --installdir="$HOME/.local/bin" --install-method=copy --overwrite-policy=always hspec-discover
+      shell: bash
+
+    - if: matrix.os == 'ubuntu-latest'
+      name: Install cabal-docspec
+      run: |
+        curl -sL https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20210111/cabal-docspec-0.0.0.20210111.xz > cabal-docspec.xz
+        echo '0829bd034fba901cbcfe491d98ed8b28fd54f9cb5c91fa8e1ac62dc4413c9562  cabal-docspec.xz' | sha256sum -c -
+        xz -d < cabal-docspec.xz > $HOME/.local/bin/cabal-docspec
+        rm -f cabal-docspec.xz
+        chmod a+x $HOME/.local/bin/cabal-docspec
+      shell: bash
+
+    - name: Build
+      run: cabal build --enable-tests --enable-benchmarks all
+      shell: bash
+
+    - name: Run tests
+      run: cabal test abstract-filepath:spec
+      shell: bash
+
+    - if: matrix.os == 'ubuntu-latest' && matrix.ghc != '8.0.2' && matrix.ghc != '8.2.2'
+      name: Run doctests
+      run: cabal-docspec -XCPP -XTypeSynonymInstances -XOverloadedStrings abstract-filepath
+      shell: bash
+
+        #    - name: Run benches
+        #      run: cabal bench abstract-filepath-bytestring
+        #      shell: bash
+
+    - name: Build haddock
+      run: cabal haddock all
+      shell: bash
+
+    - if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: plan.json
+        path: ./dist-newstyle/cache/plan.json
+
+  build-stack:
+    name: Stack ${{ matrix.stack }} ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        stack: ['latest']
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: haskell/actions/setup@v1.2.6
+      with:
+        enable-stack: true
+        stack-no-global: true
+        stack-version: ${{ matrix.stack }}
+
+    - name: Cache
+      uses: actions/cache@v1
+      env:
+        cache-name: stack-cabal
+      with:
+        path: ~/.stack
+        key: ${{ runner.os }}-${{ matrix.stack }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/stack.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    - name: Build
+      run: stack build
+      shell: bash
+
+    - name: Run tests
+      run: stack test abstract-filepath:spec
+      shell: bash
+
+        #    - name: Run benches
+        #      run: stack bench abstract-filepath-bytestring
+        #      shell: bash

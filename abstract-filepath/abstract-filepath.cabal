@@ -1,0 +1,78 @@
+cabal-version:      3.0
+name:               abstract-filepath
+version:            0.1.0.0
+license:            MIT
+license-file:       LICENSE
+maintainer:         hasufell@posteo.de
+author:             Julian Ospald
+bug-reports:        https://github.com/hasufell/abstract-filepath/issues
+synopsis:           Abstract cross-platform FilePath
+description:
+  This is a user-space implementation of the Abstract FilePath Proposal (AFPP) authored by Herbert Valerio Riedel, Neil Mitchell & Michael Snoyman.
+
+tested-with:
+  GHC ==8.0.2
+   || ==8.2.2
+   || ==8.4.4
+   || ==8.6.5
+   || ==8.8.4
+   || ==8.10.6
+   || ==9.0.1
+
+category:           System
+extra-source-files:
+  lib/AFP/AbstractFilePath/Common.hs
+  lib/AFP/AbstractFilePath/Internal/Common.hs
+  lib/AFP/AbstractFilePath.hs-boot
+  lib/AFP/OsString/Common.hs
+
+extra-doc-files:    CHANGELOG.md
+
+library
+  exposed-modules:
+    AFP.AbstractFilePath
+    AFP.AbstractFilePath.Internal
+    AFP.AbstractFilePath.Internal.Posix
+    AFP.AbstractFilePath.Internal.Windows
+    AFP.AbstractFilePath.Posix
+    AFP.AbstractFilePath.Windows
+    AFP.OsString
+    AFP.OsString.Internal
+    AFP.OsString.Posix
+    AFP.OsString.Windows
+
+  hs-source-dirs:           lib
+  default-language:         Haskell2010
+  build-depends:
+    , shortbytestring
+    , abstract-filepath-types
+    , base                          >=4.9.1.0  && <5
+    , bytestring                    ^>=0.10.8.1
+    , exceptions                    ^>=0.10
+    , primitive                     ^>=0.7
+    , template-haskell              >=2.10     && <2.20
+    , text                          >=1.2.3.0  && <1.2.6
+    , word16
+    , word8                         ^>=0.1
+
+  x-docspec-extra-packages: QuickCheck
+
+test-suite spec
+  type:               exitcode-stdio-1.0
+  main-is:            Test.hs
+  build-tool-depends: hspec-discover:hspec-discover -any
+  hs-source-dirs:     test
+  other-modules:
+    AbstractFilePathSpec
+    Arbitrary
+
+  default-language:   Haskell2010
+  build-depends:
+    , abstract-filepath
+    , shortbytestring
+    , abstract-filepath-types
+    , base                          >=4.9.1.0 && <5
+    , checkers                      ^>=0.5.6
+    , hspec                         ^>=2.8.2
+    , hspec-checkers                ^>=0.1.0.2
+    , QuickCheck                    ^>=2.14.2

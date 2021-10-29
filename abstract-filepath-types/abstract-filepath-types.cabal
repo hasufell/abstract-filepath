@@ -1,0 +1,38 @@
+cabal-version:   3.0
+name:            abstract-filepath-types
+version:         0.1.0.0
+license:         MIT
+license-file:    LICENSE
+maintainer:      hasufell@posteo.de
+author:          Julian Ospald
+synopsis:        Abstract cross-platform FilePath types
+description:
+  This is a user-space implementation of the Abstract FilePath Proposal (AFPP) authored by Herbert Valerio Riedel, Neil Mitchell & Michael Snoyman. This package contains only the raw types with a minimal dependency footprint.
+
+tested-with:
+  GHC ==8.0.2
+   || ==8.2.2
+   || ==8.4.4
+   || ==8.6.5
+   || ==8.8.4
+   || ==8.10.6
+   || ==9.0.1
+
+category:        System
+extra-doc-files: CHANGELOG.md
+
+library
+  exposed-modules:
+    AFP.AbstractFilePath.Types
+    AFP.OsString.Internal.Types
+    AFP.OsString.Types
+
+  hs-source-dirs:   lib
+  default-language: Haskell2010
+  build-depends:
+    , base              >=4.9.1.0 && <5
+    , bytestring        ^>=0.10
+    , deepseq
+    , template-haskell  >=2.10    && <2.20
+    , text              >=1.2.3.0 && <1.2.6
+    , word16
