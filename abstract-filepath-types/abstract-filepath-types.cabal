@@ -35,4 +35,3 @@ library
     , deepseq
     , template-haskell  >=2.10    && <2.20
     , text              >=1.2.3.0 && <1.2.6
-    , word16
