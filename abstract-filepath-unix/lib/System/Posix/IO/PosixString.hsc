@@ -26,7 +26,7 @@ module System.Posix.IO.PosixString (
     -- ** Opening and closing files
     OpenMode(..),
     OpenFileFlags(..), defaultFileFlags,
-    openFd, openFdAt, createFile, createFileAt,
+    openFd, createFile,
     closeFd,
 
     -- ** Reading\/writing data
@@ -63,6 +63,7 @@ module System.Posix.IO.PosixString (
   ) where
 
 import System.Posix.Types
+import System.Posix.IO hiding (openFd, createFile)
 import System.Posix.IO.Common
 import AFP.AbstractFilePath.Types
 
@@ -72,42 +73,17 @@ import System.Posix.PosixFilePath.FilePath
 -- for information on how to use the 'FileMode' type.
 openFd :: PosixFilePath
        -> OpenMode
+       -> Maybe FileMode -- ^Just x => creates the file with the given modes, Nothing => the file must exist.
        -> OpenFileFlags
        -> IO Fd
-openFd = openFdAt Nothing
-
--- | Open a file relative to an optional directory file descriptor.
---
--- Directory file descriptors can be used to avoid some race conditions when
--- navigating changing directory trees, or to retain access to a portion of the
--- directory tree that would otherwise become inaccessible after dropping
--- privileges.
-openFdAt :: Maybe Fd -- ^ Optional directory file descriptor
-         -> PosixFilePath -- ^ Pathname to open
-         -> OpenMode -- ^ Read-only, read-write or write-only
-         -> OpenFileFlags -- ^ Append, exclusive, truncate, etc.
-         -> IO Fd
-openFdAt fdMay name how flags =
-   withFilePath name $ \str ->
-     throwErrnoPathIfMinus1Retry "openFdAt" name $
-       openat_ fdMay str how flags
+openFd name how maybe_mode flags =
+   withFilePath name $ \str -> do
+     throwErrnoPathIfMinus1Retry "openFd" name $
+       open_ str how maybe_mode flags
 
 -- |Create and open this file in WriteOnly mode.  A special case of
 -- 'openFd'.  See 'System.Posix.Files' for information on how to use
 -- the 'FileMode' type.
 createFile :: PosixFilePath -> FileMode -> IO Fd
-createFile = createFileAt Nothing
+createFile name mode = openFd name WriteOnly (Just mode) defaultFileFlags{ trunc=True }
 
--- | Create and open a file for write-only, with default flags,
--- relative an optional directory file-descriptor.
---
--- Directory file descriptors can be used to avoid some race conditions when
--- navigating changing directory trees, or to retain access to a portion of the
--- directory tree that would otherwise become inaccessible after dropping
--- privileges.
-createFileAt :: Maybe Fd -- ^ Optional directory file descriptor
-             -> PosixFilePath -- ^ Pathname to create
-             -> FileMode -- ^ File permission bits (before umask)
-             -> IO Fd
-createFileAt fdMay name mode
-  = openFdAt fdMay name WriteOnly defaultFileFlags{ trunc=True, creat=(Just mode) }

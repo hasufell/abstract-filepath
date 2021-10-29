@@ -79,7 +79,7 @@ module System.Posix.Files.PosixString (
 
     -- * Changing file timestamps
     setFileTimes, setFileTimesHiRes,
-    setFdTimesHiRes, setSymbolicLinkTimesHiRes,
+    setSymbolicLinkTimesHiRes,
     touchFile, touchFd, touchSymbolicLink,
 
     -- * Setting file sizes
@@ -91,6 +91,7 @@ module System.Posix.Files.PosixString (
 
 import System.Posix.Types
 import System.Posix.Internals hiding (withFilePath, peekFilePathLen)
+import qualified System.Posix.Files.Common as Common
 import Foreign
 import Foreign.C hiding (
      throwErrnoPath,
@@ -101,10 +102,11 @@ import Foreign.C hiding (
      throwErrnoPathIfMinus1_ )
 
 import AFP.AbstractFilePath.Types
-import System.Posix.Files.Common
+import System.Posix.Files hiding (getFileStatus, getSymbolicLinkStatus, createNamedPipe, createDevice, createLink, removeLink, createSymbolicLink, readSymbolicLink, rename, setOwnerAndGroup, setSymbolicLinkOwnerAndGroup, setFileTimes, setSymbolicLinkTimesHiRes, touchFile, touchSymbolicLink, setFileSize, getPathVar, setFileMode, fileAccess, fileExist, setFdTimesHiRes, setFileTimesHiRes)
 import System.Posix.PosixFilePath.FilePath
 
 import Data.Time.Clock.POSIX (POSIXTime)
+import Unsafe.Coerce (unsafeCoerce)
 
 -- -----------------------------------------------------------------------------
 -- chmod()
@@ -174,7 +176,7 @@ getFileStatus path = do
   withForeignPtr fp $ \p ->
     withFilePath path $ \s ->
       throwErrnoPathIfMinus1Retry_ "getFileStatus" path (c_stat s p)
-  return (FileStatus fp)
+  return $ unsafeCoerce (Common.FileStatus fp)
 
 -- | Acts as 'getFileStatus' except when the 'PosixFilePath' refers to a symbolic
 -- link. In that case the @FileStatus@ information of the symbolic link itself
@@ -187,7 +189,7 @@ getSymbolicLinkStatus path = do
   withForeignPtr fp $ \p ->
     withFilePath path $ \s ->
       throwErrnoPathIfMinus1_ "getSymbolicLinkStatus" path (c_lstat s p)
-  return (FileStatus fp)
+  return $ unsafeCoerce (Common.FileStatus fp)
 
 foreign import capi unsafe "HsUnix.h lstat"
   c_lstat :: CString -> Ptr CStat -> IO CInt
@@ -356,14 +358,14 @@ setFileTimesHiRes :: PosixFilePath -> POSIXTime -> POSIXTime -> IO ()
 #ifdef HAVE_UTIMENSAT
 setFileTimesHiRes name atime mtime =
   withFilePath name $ \s ->
-    withArray [toCTimeSpec atime, toCTimeSpec mtime] $ \times ->
+    withArray [Common.toCTimeSpec atime, Common.toCTimeSpec mtime] $ \times ->
       throwErrnoPathIfMinus1_ "setFileTimesHiRes" name $
-        c_utimensat (#const AT_FDCWD) s times 0
+        Common.c_utimensat (#const AT_FDCWD) s times 0
 #else
 setFileTimesHiRes name atime mtime =
   withFilePath name $ \s ->
-    withArray [toCTimeVal atime, toCTimeVal mtime] $ \times ->
-      throwErrnoPathIfMinus1_ "setFileTimesHiRes" name (c_utimes s times)
+    withArray [Common.toCTimeVal atime, Common.toCTimeVal mtime] $ \times ->
+      throwErrnoPathIfMinus1_ "setFileTimesHiRes" name (Common.c_utimes s times)
 #endif
 
 -- | Like 'setFileTimesHiRes' but does not follow symbolic links.
@@ -379,15 +381,15 @@ setSymbolicLinkTimesHiRes :: PosixFilePath -> POSIXTime -> POSIXTime -> IO ()
 #if HAVE_UTIMENSAT
 setSymbolicLinkTimesHiRes name atime mtime =
   withFilePath name $ \s ->
-    withArray [toCTimeSpec atime, toCTimeSpec mtime] $ \times ->
+    withArray [Common.toCTimeSpec atime, Common.toCTimeSpec mtime] $ \times ->
       throwErrnoPathIfMinus1_ "setSymbolicLinkTimesHiRes" name $
-        c_utimensat (#const AT_FDCWD) s times (#const AT_SYMLINK_NOFOLLOW)
+        Common.c_utimensat (#const AT_FDCWD) s times (#const AT_SYMLINK_NOFOLLOW)
 #elif HAVE_LUTIMES
 setSymbolicLinkTimesHiRes name atime mtime =
   withFilePath name $ \s ->
-    withArray [toCTimeVal atime, toCTimeVal mtime] $ \times ->
+    withArray [Common.toCTimeVal atime, Common.toCTimeVal mtime] $ \times ->
       throwErrnoPathIfMinus1_ "setSymbolicLinkTimesHiRes" name $
-        c_lutimes s times
+        Common.c_lutimes s times
 #else
 setSymbolicLinkTimesHiRes =
   error "setSymbolicLinkTimesHiRes: not available on this platform"
@@ -411,7 +413,7 @@ touchSymbolicLink :: PosixFilePath -> IO ()
 #if HAVE_LUTIMES
 touchSymbolicLink name =
   withFilePath name $ \s ->
-    throwErrnoPathIfMinus1_ "touchSymbolicLink" name (c_lutimes s nullPtr)
+    throwErrnoPathIfMinus1_ "touchSymbolicLink" name (Common.c_lutimes s nullPtr)
 #else
 touchSymbolicLink =
   error "touchSymbolicLink: not available on this platform"
@@ -446,7 +448,7 @@ getPathVar :: PosixFilePath -> PathVar -> IO Limit
 getPathVar name v = do
   withFilePath name $ \ nameP ->
     throwErrnoPathIfMinus1 "getPathVar" name $
-      c_pathconf nameP (pathVarConst v)
+      c_pathconf nameP (Common.pathVarConst v)
 
 foreign import ccall unsafe "pathconf"
   c_pathconf :: CString -> CInt -> IO CLong

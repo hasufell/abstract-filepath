@@ -68,7 +68,7 @@ module System.Posix.Process.PosixString (
 
 import Foreign
 import System.Posix.Process.Internals
-import System.Posix.Process.Common
+import System.Posix.Process (ProcessTimes(..), setProcessGroupID, createProcessGroup, getGroupProcessStatus, getAnyProcessStatus, getProcessStatus, setUserPriority, setProcessGroupPriority, setProcessPriority, getUserPriority, getProcessGroupPriority, getProcessPriority, nice, getProcessTimes, createSession, setProcessGroupIDOf, joinProcessGroup, createProcessGroupFor, getProcessGroupIDOf, getProcessGroupID, getParentProcessID, getProcessID, exitImmediately, forkProcessWithUnmask, forkProcess)
 
 import Foreign.C hiding (
      throwErrnoPath,

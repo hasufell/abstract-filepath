@@ -54,8 +54,6 @@ library
     System.Posix.Directory.Common
     System.Posix.Files.Common
     System.Posix.IO.Common
-    System.Posix.Process.Common
-    System.Posix.Process.Internals
 
   build-depends:
     , abstract-filepath
@@ -64,6 +62,7 @@ library
     , base                          >=4.9.1.0 && <5
     , bytestring                    >=0.9.2   && <0.12
     , time                          >=1.2     && <1.13
+    , unix                          ==2.7.2.2
     , word8                         ^>=0.1
 
   if os(windows)
