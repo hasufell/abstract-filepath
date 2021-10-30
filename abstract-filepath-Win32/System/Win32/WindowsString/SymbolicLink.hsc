@@ -35,16 +35,18 @@ module System.Win32.WindowsString.SymbolicLink
   , createSymbolicLinkDirectory
   ) where
 
+import System.Win32.SymbolicLink ( SymbolicLinkFlags )
 import Data.Bits ((.|.))
 import System.Win32.WindowsString.Types
 import System.Win32.WindowsString.File ( failIfFalseWithRetry_ )
 import AFP.AbstractFilePath.Windows
+import Unsafe.Coerce (unsafeCoerce)
 
 ##include "windows_cconv.h"
 
-type SymbolicLinkFlags = DWORD
+type SymbolicLinkFlags_ = DWORD
 
-#{enum SymbolicLinkFlags,
+#{enum SymbolicLinkFlags_,
  , sYMBOLIC_LINK_FLAG_FILE      = 0x0
  , sYMBOLIC_LINK_FLAG_DIRECTORY = 0x1
  , sYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2
@@ -96,7 +98,7 @@ createSymbolicLink' link target flag = do
     withTString link $ \c_link ->
       withTString target $ \c_target ->
         failIfFalseWithRetry_ (unwords ["CreateSymbolicLink",show link,show target]) $
-          c_CreateSymbolicLink c_link c_target flag
+          c_CreateSymbolicLink c_link c_target (unsafeCoerce flag)
 
 foreign import WINDOWS_CCONV unsafe "windows.h CreateSymbolicLinkW"
-  c_CreateSymbolicLink :: LPTSTR -> LPTSTR -> SymbolicLinkFlags -> IO BOOL
+  c_CreateSymbolicLink :: LPTSTR -> LPTSTR -> SymbolicLinkFlags_ -> IO BOOL

@@ -16,6 +16,16 @@ module System.Win32.WindowsString.String
   , newTString
   , withTStringBuffer, withTStringBufferLen
   ) where
+
+import System.Win32.String hiding
+  ( withTStringBuffer
+  , withTStringBufferLen
+  , withTString
+  , withTStringLen
+  , peekTString
+  , peekTStringLen
+  , newTString
+  )
 import System.Win32.WindowsString.Types
 import AFP.OsString.Internal.Types
 import qualified Data.ByteString.Short as SBS

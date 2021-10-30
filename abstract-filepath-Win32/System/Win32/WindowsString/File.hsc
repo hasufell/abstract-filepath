@@ -13,7 +13,27 @@
 -----------------------------------------------------------------------------
 
 module System.Win32.WindowsString.File
-    ( module System.Win32.WindowsString.File
+    ( deleteFile
+    , copyFile
+    , moveFile
+    , moveFileEx
+    , setCurrentDirectory
+    , createDirectory
+    , createDirectoryEx
+    , removeDirectory
+    , getBinaryType
+    , createFile
+    , setFileAttributes
+    , getFileAttributes
+    , getFileAttributesExStandard
+    , findFirstChangeNotification
+    , getFindDataFileName
+    , findFirstFile
+    , defineDosDevice
+    , getDiskFreeSpace
+    , setVolumeLabel
+    , getFileExInfoStandard
+    , getFileExMaxInfoLevel
     , module System.Win32.File
     ) where
 
@@ -37,13 +57,12 @@ import System.Win32.File hiding (
   , defineDosDevice
   , getDiskFreeSpace
   , setVolumeLabel
-  , FindData
-  , GET_FILEEX_INFO_LEVELS
   , getFileExInfoStandard
   , getFileExMaxInfoLevel
   )
 import System.Win32.WindowsString.Types
 import AFP.OsString.Windows
+import Unsafe.Coerce (unsafeCoerce)
 
 import Foreign hiding (void)
 
@@ -52,14 +71,14 @@ import Foreign hiding (void)
 #include <windows.h>
 #include "alignment.h"
 
-newtype GET_FILEEX_INFO_LEVELS = GET_FILEEX_INFO_LEVELS (Word32)
+newtype GET_FILEEX_INFO_LEVELS_ = GET_FILEEX_INFO_LEVELS_ (Word32)
 {-# LINE 452 "System\\Win32\\File.hsc" #-}
     deriving (Eq, Ord)
 
 getFileExInfoStandard  :: GET_FILEEX_INFO_LEVELS
-getFileExInfoStandard  = GET_FILEEX_INFO_LEVELS 0
+getFileExInfoStandard  = unsafeCoerce (GET_FILEEX_INFO_LEVELS_ 0)
 getFileExMaxInfoLevel  :: GET_FILEEX_INFO_LEVELS
-getFileExMaxInfoLevel  = GET_FILEEX_INFO_LEVELS 1
+getFileExMaxInfoLevel  = unsafeCoerce (GET_FILEEX_INFO_LEVELS_ 1)
 
 {-# LINE 458 "System\\Win32\\File.hsc" #-}
 
@@ -174,10 +193,10 @@ getFileAttributesExStandard :: WindowsString -> IO WIN32_FILE_ATTRIBUTE_DATA
 getFileAttributesExStandard name =  alloca $ \res -> do
   withTString name $ \ c_name ->
     failIfFalseWithRetry_ "getFileAttributesExStandard" $
-      c_GetFileAttributesEx c_name getFileExInfoStandard res
+      c_GetFileAttributesEx c_name (unsafeCoerce getFileExInfoStandard) res
   peek res
 foreign import WINDOWS_CCONV unsafe "windows.h GetFileAttributesExW"
-  c_GetFileAttributesEx :: LPCTSTR -> GET_FILEEX_INFO_LEVELS -> Ptr a -> IO BOOL
+  c_GetFileAttributesEx :: LPCTSTR -> GET_FILEEX_INFO_LEVELS_ -> Ptr a -> IO BOOL
 
 
 ----------------------------------------------------------------
@@ -202,12 +221,13 @@ foreign import WINDOWS_CCONV unsafe "windows.h FindFirstChangeNotificationW"
 
 type WIN32_FIND_DATA = ()
 
-newtype FindData = FindData (ForeignPtr WIN32_FIND_DATA)
+newtype FindData_ = FindData_ (ForeignPtr WIN32_FIND_DATA)
 
 getFindDataFileName :: FindData -> IO WindowsString
-getFindDataFileName (FindData fp) =
-  withForeignPtr fp $ \p ->
-    peekTString ((# ptr WIN32_FIND_DATAW, cFileName ) p)
+getFindDataFileName fd = case unsafeCoerce fd of
+  (FindData_ fp) ->
+    withForeignPtr fp $ \p ->
+      peekTString ((# ptr WIN32_FIND_DATAW, cFileName ) p)
 
 findFirstFile :: WindowsString -> IO (HANDLE, FindData)
 findFirstFile str = do
@@ -216,7 +236,7 @@ findFirstFile str = do
     handle <- withTString str $ \tstr -> do
                 failIf (== iNVALID_HANDLE_VALUE) "findFirstFile" $
                   c_FindFirstFile tstr p_finddata
-    return (handle, FindData fp_finddata)
+    return (handle, unsafeCoerce (FindData_ fp_finddata))
 foreign import WINDOWS_CCONV unsafe "windows.h FindFirstFileW"
   c_FindFirstFile :: LPCTSTR -> Ptr WIN32_FIND_DATA -> IO HANDLE
 

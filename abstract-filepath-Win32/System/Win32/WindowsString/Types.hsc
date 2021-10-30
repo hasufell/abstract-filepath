@@ -16,7 +16,7 @@
 
 module System.Win32.WindowsString.Types
         ( module System.Win32.WindowsString.Types
-        , module  System.Win32.Types 
+        , module System.Win32.Types 
         ) where
 
 import System.Win32.Types hiding (

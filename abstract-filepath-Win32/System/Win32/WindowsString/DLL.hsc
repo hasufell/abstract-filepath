@@ -13,7 +13,12 @@
 -----------------------------------------------------------------------------
 
 module System.Win32.WindowsString.DLL
-    ( disableThreadLibraryCalls
+    ( module System.Win32.WindowsString.DLL
+    , module System.Win32.DLL
+    ) where
+
+import System.Win32.DLL hiding
+  ( disableThreadLibraryCalls
     , freeLibrary
     , getModuleFileName
     , getModuleHandle
@@ -21,11 +26,9 @@ module System.Win32.WindowsString.DLL
     , loadLibrary
     , loadLibraryEx
     , setDllDirectory
-    , LoadLibraryFlags
     , lOAD_LIBRARY_AS_DATAFILE
     , lOAD_WITH_ALTERED_SEARCH_PATH
-    ) where
-
+  )
 import System.Win32.WindowsString.Types
 
 import Foreign
@@ -78,8 +81,6 @@ loadLibrary name =
   failIfNull "LoadLibrary" $ c_LoadLibrary c_name
 foreign import WINDOWS_CCONV unsafe "windows.h LoadLibraryW"
   c_LoadLibrary :: LPCTSTR -> IO HINSTANCE
-
-type LoadLibraryFlags = DWORD
 
 #{enum LoadLibraryFlags,
  , lOAD_LIBRARY_AS_DATAFILE      = LOAD_LIBRARY_AS_DATAFILE
