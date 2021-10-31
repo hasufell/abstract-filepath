@@ -2,3 +2,8 @@ packages: ./abstract-filepath-types
           ./abstract-filepath
           ./abstract-filepath-unix
           ./abstract-filepath-Win32
+
+source-repository-package
+    type: git
+    location: https://github.com/hasufell/shortbytestring.git
+    tag: ebc02c5587910c65ee51f29b813c150aa04f597c
