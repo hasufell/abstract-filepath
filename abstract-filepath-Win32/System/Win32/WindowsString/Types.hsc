@@ -47,6 +47,7 @@ import Data.ByteString.Short.Word16 (
   useAsCWStringLen,
   newCWString
   )
+import Data.Bifunctor (first)
 import Data.Char (isSpace)
 import Numeric (showHex)
 import qualified System.IO as IO ()
@@ -55,6 +56,7 @@ import Foreign (allocaArray)
 import Foreign.Ptr ( Ptr )
 import Foreign.C.Error ( errnoToIOError )
 import Control.Exception ( throwIO )
+import GHC.Ptr (castPtr)
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Word (Word)
@@ -85,11 +87,12 @@ peekTStringLen :: (LPCTSTR, Int) -> IO WindowsString
 newTString     :: WindowsString -> IO LPCTSTR
 
 -- UTF-16 version:
-withTString    = useAsCWString . unWFP
-withTStringLen = useAsCWStringLen . unWFP
-peekTString    = fmap WS . packCWString
-peekTStringLen = fmap WS . packCWStringLen
-newTString     = newCWString . unWFP
+-- the casts are from 'Ptr Word16' to 'Ptr CWchar', which is safe
+withTString (WS str) f    = useAsCWString str (\ptr -> f (castPtr ptr))
+withTStringLen (WS str) f = useAsCWStringLen str (\(ptr, len) -> f (castPtr ptr, len))
+peekTString    = fmap WS . packCWString . castPtr
+peekTStringLen = fmap WS . packCWStringLen . first castPtr
+newTString (WS str) = fmap castPtr $ newCWString str
 
 ----------------------------------------------------------------
 -- Errors
